@@ -1,0 +1,6 @@
+*.deb
+*.so
+build/
+*.html
+ara2-vision-examples/usr/bin/multistream_yolov8
+.vscode/

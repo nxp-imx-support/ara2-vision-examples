@@ -1,0 +1,14 @@
+Package: ara2-vision-examples
+Version: 1.0.0
+Section: utils
+Priority: optional
+Maintainer: NXP
+Architecture: arm64
+Suggests: gstreamer1.0-tools, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
+Homepage: https://www.nxp.com
+Description: Computer vision examples using Ara-2 NPU.
+  Included examples:
+    * Multi-stream object detection (YOLOv8n)
+  Supported Platforms
+    * FRDM i.MX 8M Plus
+    * FRDM i.MX 95

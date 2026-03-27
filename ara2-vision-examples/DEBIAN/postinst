@@ -1,0 +1,352 @@
+#!/bin/bash
+# postinst script for ara2-vision-examples
+# Copyright 2025 NXP
+# SPDX-License-Identifier: BSD-3-Clause
+
+set -e
+
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[38;5;117m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+CHECK="[OK]"
+CROSS="[X]"
+ARROW="->"
+WARNING="[!]"
+
+_strip_ansi() {
+  sed -E 's/\x1B\[[0-9;]*[[:alpha:]]//g'
+}
+
+_repeat_unit() {
+  local __var="$1" __count="$2" __unit="$3"
+  if (( __count <= 0 )); then
+    printf -v "$__var" "%s" ""
+    return
+  fi
+  local out=""
+  local i
+  for (( i=0; i<__count; i++ )); do
+    out+="$__unit"
+  done
+  printf -v "$__var" "%s" "$out"
+}
+
+_repeat_char() {
+  local __var="$1" __count="$2" __char="$3"
+  if (( __count <= 0 )); then
+    printf -v "$__var" "%s" ""
+    return
+  fi
+  local spaces
+  printf -v spaces "%*s" "$__count" ""
+  local ch="${__char:0:1}"
+  local val
+  val=$(printf "%s" "$spaces" | LC_ALL=C tr ' ' "$ch")
+  printf -v "$__var" "%s" "$val"
+}
+
+_center_visible() {
+  local text="$1" width="$2" pad="${3:- }"
+  local vis stripped total_pad left right L R
+  stripped="$(printf "%s" "$text" | _strip_ansi)"
+  vis="${#stripped}"
+  
+  (( vis < 0 )) && vis=0
+  (( width < vis )) && width="$vis"
+  
+  total_pad=$(( width - vis ))
+  (( total_pad < 0 )) && total_pad=0
+  
+  left=$(( total_pad / 2 ))
+  right=$(( total_pad - left ))
+  
+  _repeat_char L "$left" "$pad"
+  _repeat_char R "$right" "$pad"
+  
+  echo -e -n "$L" "${BOLD}${text}${RESET}" "$R"
+}
+
+header() {
+  local title="$1"
+  local min_width="80"
+  local border_pad="═"
+  
+  if ! [[ "$min_width" =~ ^[0-9]+$ ]]; then
+    printf "header: MIN_WIDTH must be an integer (got: %s)\n" "$min_width" >&2
+    return 2
+  fi
+  
+  local content
+  content="${title}"
+  
+  local stripped visible inner_target outer_target
+  stripped="$(printf "%s" "$content" | _strip_ansi)"
+  visible="${#stripped}"
+  
+  outer_target=$(( visible + 2 + 2 ))
+  if (( outer_target < min_width )); then
+    outer_target="$min_width"
+  fi
+  
+  local inner_width=$(( outer_target - 2 ))
+  (( inner_width < 0 )) && inner_width=0
+  
+  local horiz
+  _repeat_unit horiz "$inner_width" "$border_pad"
+  
+  printf "\n"
+  echo -e "${BOLD}${CYAN}╔""$horiz""╗${RESET}"
+  echo -e -n "${BOLD}${CYAN}║${RESET}  "
+  
+  local content_area=$(( inner_width - 4 ))
+  (( content_area < 0 )) && content_area=0
+  
+  _center_visible "${content}" "$content_area" " "
+  
+  echo -e "${BOLD}${CYAN}║${RESET}"
+  echo -e "${BOLD}${CYAN}╚""$horiz""╝${RESET}"
+  printf "\n"
+}
+
+section() {
+  echo -e "\n${BOLD}${BLUE}${ARROW} $1${RESET}"
+  local sec
+  _repeat_unit sec 80 "─"
+  echo -e "${BLUE}${sec}${RESET}"
+}
+
+success() {
+  echo -e "  ${GREEN}${CHECK}${RESET} $1"
+}
+
+error() {
+  echo -e "  ${RED}${CROSS}${RESET} $1"
+}
+
+info() {
+  echo -e "    $1"
+}
+
+warning() {
+  echo -e "  ${YELLOW}${WARNING}${RESET}  $1"
+}
+
+# Package information
+PACKAGE_NAME="ara2-vision-examples"
+PACKAGE_VERSION="1.0.0"
+DEMO_EXEC="multistream_yolov8"
+INSTALL_PATH="/usr/bin"
+SCRIPT_PATH="$INSTALL_PATH/$DEMO_EXEC"
+FETCH_MODELS_SCRIPT="uvx --from /usr/share/python-wheels/fetch_models-1.0.0-py3-none-any.whl fetch_models"
+
+# Define models to check (add more as needed)
+readonly MODELS=(
+	"nxp/YOLOv8"
+)
+
+# Required library and plugin paths
+LIBARACLIENT_PATH="/usr/lib/libaraclient_aarch64.so"
+GST_PLUGIN_PATH="/usr/lib/gstreamer-1.0"
+REQUIRED_GST_PLUGINS=("libgstdvPre.so" "libgstdvInf.so" "libgstdvPost.so")
+
+verify_script() {
+    if [ ! -f "$SCRIPT_PATH" ]; then
+        error "Script not found: $SCRIPT_PATH"
+        return 1
+    fi
+    success "Verified script exists: $SCRIPT_PATH"
+    return 0
+}
+
+set_permissions() {
+    if [ ! -f "$SCRIPT_PATH" ]; then
+        warning "Script not found, skipping permission setup"
+        return 0
+    fi
+    
+    if chmod 755 "$SCRIPT_PATH" 2>/dev/null; then
+        success "Set executable permissions on $DEMO_EXEC"
+        return 0
+    else
+        error "Failed to set permissions on $SCRIPT_PATH"
+        return 1
+    fi
+}
+
+validate_critical_libraries() {
+    local validation_failed=false
+    
+    info "Validating critical libraries and plugins..."
+    echo ""
+    
+    # Check for rt-sdk-ara2 package
+    if dpkg -l rt-sdk-ara2 2>/dev/null | grep -q '^ii'; then
+        success "Dependency 'rt-sdk-ara2' is installed"
+    else
+        error "Required dependency 'rt-sdk-ara2' is NOT installed"
+        info "Install with: dpkg -i rt-sdk-ara2.deb"
+        validation_failed=true
+    fi
+
+    # Check for libaraclient_aarch64.so
+    if [ -f "$LIBARACLIENT_PATH" ]; then
+        success "Found required library: $LIBARACLIENT_PATH"
+    else
+        error "CRITICAL: Required library not found: $LIBARACLIENT_PATH"
+        info "This library is provided by the rt-sdk-ara2 package"
+        validation_failed=true
+    fi
+    
+    # Check for GStreamer plugins
+    local missing_plugins=()
+    for plugin in "${REQUIRED_GST_PLUGINS[@]}"; do
+        if [ -f "$GST_PLUGIN_PATH/$plugin" ]; then
+            success "Found required GStreamer plugin: $plugin"
+        else
+            error "CRITICAL: Required GStreamer plugin not found: $plugin"
+            missing_plugins+=("$plugin")
+            validation_failed=true
+        fi
+    done
+    
+    if [ "$validation_failed" = true ]; then
+        echo ""
+        error "Missing critical dependencies required for installation"
+        echo ""
+        info "Required library: $LIBARACLIENT_PATH"
+        info "Required GStreamer plugins (in $GST_PLUGIN_PATH):"
+        for plugin in "${REQUIRED_GST_PLUGINS[@]}"; do
+            echo -e "      - $plugin"
+        done
+        echo ""
+        info "Please install rt-sdk-ara2 package to resolve these dependencies"
+        info "dpkg -i rt-sdk-ara2.deb"
+        echo ""
+        return 1
+    fi
+    
+    echo ""
+    success "All critical libraries and plugins validated"
+    return 0
+}
+
+check_dependencies() {
+    local warnings=false
+    
+    info "Checking required dependencies..."
+    
+    # Check for GStreamer
+    if command -v gst-launch-1.0 &> /dev/null; then
+        local gst_version=$(gst-launch-1.0 --version 2>&1 | grep version | awk '{print $4}')
+        success "GStreamer is available (version $gst_version)"
+    else
+        warning "GStreamer (gst-launch-1.0) not found in PATH"
+        warnings=true
+    fi
+    
+    if [ "$warnings" = true ]; then
+        echo ""
+        warning "Some optional components are missing"
+        return 0
+    fi
+    
+    echo ""
+    success "All dependencies verified"
+    return 0
+}
+
+verify_installation() {
+    local errors=0
+    
+    info "Performing post-installation verification..."
+    
+    # Verify script is executable
+    if [ -x "$SCRIPT_PATH" ]; then
+        success "Script is executable: $SCRIPT_PATH"
+    else
+        error "Script is not executable: $SCRIPT_PATH"
+        ((errors++))
+    fi
+    
+    if [ $errors -eq 0 ]; then
+        success "Installation verification passed"
+        return 0
+    else
+        error "Installation verification found $errors error(s)"
+        return 1
+    fi
+}
+
+# Main installation process
+case "$1" in
+    configure)
+        header "ARA-2 Vision Examples v$PACKAGE_VERSION - Installation"
+        
+        # Track if installation was fully successful
+        install_success=true
+        
+        # CRITICAL: Validate required libraries and plugins first
+        section "Validating Critical Dependencies"
+        if ! validate_critical_libraries; then
+            error "Installation cannot proceed without critical dependencies"
+            exit 1
+        fi
+        
+        section "Verifying Installation Files"
+        verify_script || install_success=false
+        
+        section "Setting Up Permissions"
+        set_permissions || install_success=false
+        
+        section "Checking Dependencies"
+        check_dependencies || install_success=false
+        
+        section "Verifying Installation"
+        verify_installation || install_success=false
+
+        section "Fetching models from Hugging Face Hub"
+	
+	    # Download each model
+	    for model in "${MODELS[@]}"; do
+		    info "Downloading model: ${YELLOW}${model}${RESET}"
+		    if ! ${FETCH_MODELS_SCRIPT} --repo-id "${model}"; then
+			    error "Failed to download model: ${model}"
+			    warning "You can manually download it later using:"
+			    info "  $FETCH_MODELS_SCRIPT --repo-id $model"
+			    # Don't exit, continue with other models
+		    else
+			    success "Downloaded: ${model}"
+		    fi
+	    done
+        
+        if [ "$install_success" = true ]; then
+            echo ""
+            header "Installation completed successfully!"
+            echo ""
+            info "The application is ready to use!"
+        else
+            warning "Installation completed with warnings"
+            info "Please review the errors above before using the application"
+        fi
+        ;;
+        
+    abort-upgrade|abort-remove|abort-deconfigure)
+        info "Package configuration aborted: $1"
+        ;;
+        
+    *)
+        echo -e "${RED}${CROSS} postinst called with unknown argument '$1'${RESET}" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
