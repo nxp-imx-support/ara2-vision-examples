@@ -24,16 +24,16 @@ set -o pipefail # Exit on pipe failure
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly TOOLCHAIN_PATH="${1:-}"
 readonly PACKAGE_DIR="ara2-vision-examples"
-readonly MULTISTREAM_YOLOV8N_APP_DIR="tasks/object-detection/yolov8n/multistream-gstreamer"
+readonly MULTISTREAM_YOLO_APP_DIR="tasks/object-detection/yolo/multistream-gstreamer"
 readonly DEB_PACKAGE_NAME="${PACKAGE_DIR}.deb"
 
 # Detect if terminal supports colors
 if [ -t 1 ] && command -v tput &> /dev/null && tput colors &> /dev/null && [ "$(tput colors)" -ge 8 ]; then
-    readonly RED='\033[1;31m'
-    readonly GREEN='\033[1;32m'
-    readonly YELLOW='\033[1;33m'
-    readonly BLUE='\033[1;34m'
-    readonly NC='\033[0m'
+    readonly RED=$(tput setaf 1 setab 0)
+    readonly GREEN=$(tput setaf 2 setab 0)
+    readonly YELLOW=$(tput setaf 3 setab 0)
+    readonly BLUE=$(tput setaf 4 setab 0)
+    readonly NC=$(tput sgr0)
 else
     readonly RED=''
     readonly GREEN=''
@@ -224,7 +224,7 @@ check_command nproc
 
 # Validate directory structure
 print_step "Validating directory structure..."
-check_directory "$MULTISTREAM_YOLOV8N_APP_DIR" "Multistream YOLOv8n application directory"
+check_directory "$MULTISTREAM_YOLO_APP_DIR" "Multistream YOLOv8n application directory"
 check_directory "$PACKAGE_DIR/DEBIAN" "DEBIAN control directory"
 check_file "$PACKAGE_DIR/DEBIAN/control" "DEBIAN control file"
 check_file "LICENSE.txt" "License file"
@@ -254,11 +254,11 @@ else
     print_warning "No cross-compilation variables detected. Building for host?"
 fi
 # ============================================================================
-# Build Multistream YOLOv8n Application
+# Build Multistream YOLO Application
 # ============================================================================
 build_cmake_project \
-    "Multistream YOLOv8n Application" \
-    "$MULTISTREAM_YOLOV8N_APP_DIR" \
+    "Multistream YOLO Application" \
+    "$MULTISTREAM_YOLO_APP_DIR" \
     "$SCRIPT_DIR/$PACKAGE_DIR" \
     "false"
 
@@ -306,7 +306,7 @@ chmod 644 "$PACKAGE_DIR/DEBIAN/control" || {
 # ============================================================================
 print_step "Validating package contents..."
 
-if [ -f "$PACKAGE_DIR$INSTALL_PREFIX/bin/multistream_yolov8" ]; then
+if [ -f "$PACKAGE_DIR$INSTALL_PREFIX/bin/multistream_yolo" ]; then
     print_info "Multistream YOLOv8n binary found"
 else
     print_error "Multistream YOLOv8n binary not found in package"

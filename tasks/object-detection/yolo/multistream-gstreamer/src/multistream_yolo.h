@@ -25,6 +25,10 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <functional>
+
+// Project headers
+#include "stream_config.h"
 
 // Constants
 namespace {
@@ -80,6 +84,12 @@ struct DetectionBox {
   int track_id;
 };
 
+struct ModelResolution {
+  int width;
+  int height;
+  bool success;
+};
+
 // Structure matching ara_detection_t from ara_inference_api.h
 // NOTE: class_name pointer is not valid after serialization, so we ignore it
 struct AraDetection {
@@ -91,6 +101,14 @@ struct AraDetection {
   int32_t class_id;         // offset 20, 4 bytes
   void* class_name_ptr;     // offset 24, 8 bytes (ignored - pointer not valid)
 } __attribute__((packed));  // Total: 32 bytes on 64-bit systems
+
+//Camera configuration structure
+struct CameraConfig {
+  std::string device;
+  int width;
+  int height;
+  int fps;
+};
 
 /**
  * @brief Handles detection visualization for a video stream
@@ -113,10 +131,32 @@ class Detection {
    * @param pipeline GStreamer pipeline element
    */
   void start(GstElement* pipeline);
+  void set_no_bbox(bool no_bbox);
+  void set_no_osd_stats(bool no_osd_stats);
+  void set_only_bbox(bool only_bbox);
+  void set_console_interval(int console_interval);
+  void print_stats_to_console(void);
+  void set_stats_callback(std::function < void() > callback);
+  double get_avg_fps(void) const
+  {
+    return avg_fps_;
+  }
+  double get_avg_ips(void)
+  {
+    std::lock_guard < std::mutex > lock(ips_mutex_);
+    return avg_ips_;
+  }
 
  private:
   // Stream identification
   int stream_id_;
+  bool no_bbox_;
+  bool no_osd_stats_;
+  bool only_bbox_;
+  int console_interval_;
+
+  std::chrono::steady_clock::time_point last_console_print_;
+  std::function < void() > stats_callback_;
 
   // GStreamer elements
   GstElement* dv_post_sink_;
@@ -175,12 +215,13 @@ class Detection {
                                     gpointer user_data);
 };
 
+
 /**
- * @brief Main demo application class managing multiple video streams
- */
+  * @brief Main demo application class managing multiple video streams
+  */
 class Demo {
- public:
-  Demo(int streams, int endpoint, const std::string& group, bool enable_perf_stats = false, bool sync = false, const std::string& model = "/usr/share/cnn/detection/yolov8n/model.dvm");
+  public:
+  Demo(int streams, int endpoint, const std::string& group, bool enable_perf_stats = false, bool sync = false, const std::string& model = "/usr/share/cnn/detection/yolov8n/model.dvm", int console_interval = 2);
   ~Demo();
 
   // Non-copyable
@@ -192,12 +233,27 @@ class Demo {
   Demo& operator=(Demo&&) = default;
 
   /**
-   * @brief Start the demo application
-   * @return true if started successfully, false otherwise
-   */
+    * @brief Start the demo application
+    * @return true if started successfully, false otherwise
+    */
   bool start();
+  void set_no_bbox(bool no_bbox);
+  void set_no_osd_stats(bool no_osd_stats);
+  void set_only_bbox(bool only_bbox);
+  void print_total_stats(void);
+  void add_camera(const std::string& device);
+  void set_camera_params(int width, int height, int fps);
+  static void list_cameras();
+  void set_stream_config(std::unique_ptr<StreamConfigManager> config);
+  void add_stream_source(std::unique_ptr<StreamSourceConfig> config);
+  bool load_stream_config(const std::string& filepath);
 
- private:
+  int get_video_width() const { return video_width_; }
+  int get_video_height() const { return video_height_; }
+  
+  ModelResolution get_model_resolution(const std::string& model_path);
+
+  private:
   // Configuration
   int streams_;
   int endpoint_;
@@ -208,6 +264,11 @@ class Demo {
   int video_width_;
   int video_height_;
   bool enable_perf_stats_;
+  bool no_bbox_;
+  bool no_osd_stats_;
+  bool only_bbox_;
+  int console_interval_;
+  std::unique_ptr<StreamConfigManager> stream_config_;
 
   // GStreamer components
   GstElement* pipeline_;
@@ -221,12 +282,12 @@ class Demo {
   void on_bus_message(GstMessage* message);
   void set_fullscreen_when_ready();
   void cleanup();
+  std::string build_source_pipeline(int stream_id);
 
   // GStreamer callback function
   static gboolean on_bus_message_callback(GstBus* bus, GstMessage* message,
                                           gpointer user_data);
 };
-
 /**
  * @brief Print usage information
  * @param prog_name Program name

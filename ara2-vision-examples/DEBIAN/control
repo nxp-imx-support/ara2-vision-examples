@@ -1,9 +1,10 @@
 Package: ara2-vision-examples
-Version: 1.0.0
+Version: 1.1.0
 Section: utils
 Priority: optional
 Maintainer: NXP
 Architecture: arm64
+Depends: imx-nxp-ara2
 Suggests: gstreamer1.0-tools, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
 Homepage: https://www.nxp.com
 Description: Computer vision examples using Ara-2 NPU.

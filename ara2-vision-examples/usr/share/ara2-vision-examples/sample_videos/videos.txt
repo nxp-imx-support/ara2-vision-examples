@@ -1,0 +1,9 @@
+SAMPLE VIDEO LICENSE NOTICE
+
+The sample videos included in this distribution are provided solely for use with the accompanying example applications and demonstrations.
+
+USAGE RESTRICTIONS:
+- These videos may ONLY be used with the provided examples in this distribution
+- Use is EXCLUSIVELY permitted on NXP hardware platforms
+- These videos may NOT be used in any other applications, software, projects, or distributions
+- Redistribution, modification, or repurposing of these videos is strictly prohibited

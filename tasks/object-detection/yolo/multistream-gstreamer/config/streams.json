@@ -1,0 +1,27 @@
+{
+  "streams": [
+    {
+      "type": "camera_v4l2",
+      "device": "/dev/video0",
+      "width": 640,
+      "height": 360,
+      "fps": 30
+    },
+    {
+      "type": "rtsp",
+      "url": "rtsp://192.168.1.100:554/stream1",
+      "latency_ms": 200,
+      "use_tcp": true
+    },
+    {
+      "type": "video_file",
+      "filepath": "/usr/share/ara2-vision-examples/sample_videos/video_0.mp4"
+    },
+    {
+      "type": "test_pattern",
+      "pattern": 0,
+      "width": 640,
+      "height": 360
+    }
+  ]
+}

@@ -2,5 +2,6 @@
 *.so
 build/
 *.html
-ara2-vision-examples/usr/bin/multistream_yolov8
+ara2-vision-examples/usr/bin/multistream_yolo
+ara2-vision-examples/usr/bin/launcher_multistream_yolo
 .vscode/

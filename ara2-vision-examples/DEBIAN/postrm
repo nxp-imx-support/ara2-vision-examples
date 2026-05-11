@@ -22,7 +22,7 @@ WARNING="[!]"
 # Package information
 PACKAGE_NAME="ara2-vision-examples"
 DEMO_EXEC="multistream_yolov8"
-PACKAGE_VERSION="1.0.0"
+PACKAGE_VERSION="1.1.0"
 
 # Helper functions for text formatting
 _strip_ansi() {
