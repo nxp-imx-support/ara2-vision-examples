@@ -3,7 +3,7 @@
 # NXP Ara240 Vision Examples
 
 [![License](https://img.shields.io/badge/License-Proprietary-red)](./LICENSE.txt)
-[![Platforms](https://img.shields.io/badge/Platforms-FRDM_i.MX_8M_Plus_|_FRDM_i.MX_95-blue)](https://www.nxp.com/products/processors-and-microcontrollers/arm-processors/i-mx-applications-processors:IMX_HOME)
+[![Platforms](https://img.shields.io/badge/Platforms-FRDM_i.MX_8M_Plus_|_FRDM_i.MX_95|_FRDM_i.MX_95_PRO-blue)](https://www.nxp.com/products/processors-and-microcontrollers/arm-processors/i-mx-applications-processors:IMX_HOME)
 [![Language](https://img.shields.io/badge/C++-00599C?logo=cplusplus)](https://isocpp.org/)
 [![AI/ML](https://img.shields.io/badge/AI/ML-Vision-orange)](https://www.nxp.com/docs/en/user-guide/UG10166.pdf)
 [![BSP](https://img.shields.io/badge/BSP_>=-LF6.18.20--2.0.0-purple.svg?logo=linux&logoColor=white)](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX)
@@ -26,6 +26,7 @@ semantic segmentation.
 | ------------------- | :-------: |
 | [FRDM i.MX 8M Plus] |    ✅     |
 | [FRDM i.MX 95]      |    ✅     |
+| FRDM i.MX 95 PRO    |    ✅     |
 
 [FRDM i.MX 8M Plus]: (https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX8MPLUS)
 [FRDM i.MX 95]: (https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX95)
@@ -37,8 +38,7 @@ semantic segmentation.
 - Ara240 Runtime SDK installed on target
 - [Embedded Linux for i.MX](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX)
   (>= LF6.18.20_2.0.0)
-- [ara2-vision-example.deb](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX)
-  (optional, build instructions available in this repository)
+- ara2-vision-example.deb (optional, build instructions available in this repository)
 
 
 ## 🔨 Build `ara2-vision-examples.deb` package
@@ -89,11 +89,6 @@ scp ara2-vision-examples.deb root@<ip_addr>:
 dpkg -i ara2-vision-examples.deb
 ```
 
-**NOTE:** If you downloaded the pre-built `.deb` package from
-NXP.COM, the package name will includes the version. Use the
-actual package name in the command above.
-`dpkg -i ara2-vision-examples-<version>.deb`
-
 ### 🗑️ Uninstalling the Package
 
 To remove the package while keeping configuration files:
@@ -133,7 +128,7 @@ dpkg -L ara2-vision-examples
 
 | Snapshot | Name | Platforms | Implementation | Model |
 | :---: | --- | --- | :---: | :---: |
-| <a href="./tasks/object-detection/yolo/multistream-gstreamer/README.md"><img src="./data/yoloExample.webp" width="150" alt="multistream_yolo"></a> | [multistream_yolo](./tasks/object-detection/yolo/multistream-gstreamer/README.md) | FRDM i.MX 8M Plus<br>FRDM i.MX 95 | C++ | YOLOv8n <br>YOLOv8s <br>YOLOv8m <br>YOLOv8l <br>YOLOv8x |
+| <a href="./tasks/object-detection/yolo/multistream-gstreamer/README.md"><img src="./data/yoloExample.webp" width="150" alt="multistream_yolo"></a> | [multistream_yolo](./tasks/object-detection/yolo/multistream-gstreamer/README.md) | FRDM i.MX 8M Plus<br>FRDM i.MX 95<br>FRDM i.MX 95 PRO | C++ | YOLOv8n <br>YOLOv8s <br>YOLOv8m <br>YOLOv8l <br>YOLOv8x <br>YOLOxs <br>YOLOxm <br>YOLOxl |
 
 ## 🔧 Troubleshooting
 

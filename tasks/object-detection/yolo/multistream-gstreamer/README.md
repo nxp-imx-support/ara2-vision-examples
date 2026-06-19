@@ -3,7 +3,7 @@
 # Multi-stream GStreamer Example for YOLOv8
 
 [![License](https://img.shields.io/badge/License-BSD_3_Clause-red)](./LICENSE.txt)
-[![Platforms](https://img.shields.io/badge/Platforms-FRDM_i.MX_8M_Plus_|_FRDM_i.MX_95-blue)](https://www.nxp.com/products/processors-and-microcontrollers/arm-processors/i-mx-applications-processors:IMX_HOME)
+[![Platforms](https://img.shields.io/badge/Platforms-FRDM_i.MX_8M_Plus_|_FRDM_i.MX_95|_FRDM_i.MX_95_PRO-blue)](https://www.nxp.com/products/processors-and-microcontrollers/arm-processors/i-mx-applications-processors:IMX_HOME)
 [![Language](https://img.shields.io/badge/C++-00599C?logo=cplusplus)](https://isocpp.org/)
 [![AI/ML](https://img.shields.io/badge/AI/ML-Vision-orange)](https://www.nxp.com/docs/en/user-guide/UG10166.pdf)
 
@@ -17,7 +17,7 @@ This example demonstrates multi-stream object detection using
 YOLOv8 models accelerated by the NXP Ara240 DNPU. It leverages
 GStreamer to process up to **eight simultaneous video streams**
 from **multiple input sources** including cameras 📹, video
-files 🎬, RTSP streams 📡, and test patterns 🎨.
+files 🎬, RTSP streams 📡.
 
 <div align="center">
 <img src="../../../../data/yoloExample.webp" width="600">
@@ -138,6 +138,7 @@ graph LR
 | ------------------- | :-------: |
 | [FRDM i.MX 8M Plus] |    ✅     |
 | [FRDM i.MX 95]      |    ✅     |
+| FRDM i.MX 95 PRO      |    ✅     |
 
 [FRDM i.MX 8M Plus]: (https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX8MPLUS)
 [FRDM i.MX 95]: (https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX95)
@@ -203,6 +204,9 @@ The application supports multiple input source types:
 - **Default Resolution**: 640x360 @ 30fps (configurable
   per camera)
 
+> **💡 Tip**: Use `--list-cameras` to detect available
+> V4L2 cameras on your system.
+
 #### 📡 RTSP Streams
 
 - **IP Cameras**: Network cameras with RTSP support
@@ -215,14 +219,7 @@ The application supports multiple input source types:
 - **Loop Playback**: Automatic restart when file ends
 - **Hardware Decoding**: Accelerated video decoding
 
-#### 🎨 Test Patterns
 
-- **Built-in Patterns**: SMPTE, snow, black, white, etc.
-- **Configurable Resolution**: Any supported resolution
-- **Debugging Tool**: Useful for pipeline testing
-
-> **💡 Tip**: Use `--list-cameras` to detect available
-> V4L2 cameras on your system.
 
 ## ⬇️ Download the Models
 
@@ -348,10 +345,6 @@ All videos are licensed under the
 [pixabay-license]: https://pixabay.com/service/license-summary/
 
 ### Legal Notice
-
-NXP Proprietary. This software is owned or controlled by
-NXP and may only be used strictly in accordance with the
-applicable license terms.
 
 The sample videos are provided under the
 [Pixabay Content License][pixabay-license] and are used
@@ -705,6 +698,8 @@ multistream_yolo -s 4 \
 
 ### 📡 RTSP Streaming
 
+ **⚠️ Note**: A known issue in this version prevents the bounding box from being displayed when using RTSP. A patch addressing this issue may be made available through the NXP Community site (community.nxp.com).
+
 #### 🎥 Single RTSP Stream
 
 Connect to an IP camera or RTSP source:
@@ -918,17 +913,16 @@ The application supports different YOLOv8 and YOLOX model
 variants via the `-m` or `--model` flag. Available models
 include:
 
-| Model | Size | Input Resolution | Speed | Accuracy | Best For |
-|-------|------|------------------|-------|----------|----------|
-| **yolov8n** | Nano | 640×360 | ⚡⚡⚡⚡⚡ | ⭐⭐⭐ | Maximum throughput, 8 streams |
-| **yolov8s** | Small | 640×360 | ⚡⚡⚡⚡ | ⭐⭐⭐⭐ | Balanced performance, 6 streams |
-| **yolov8m** | Medium | 640×360 | ⚡⚡⚡ | ⭐⭐⭐⭐⭐ | Good accuracy, 4 streams |
-| **yolov8l** | Large | 640×360 | ⚡⚡ | ⭐⭐⭐⭐⭐⭐ | High accuracy, 2 streams |
-| **yolov8x** | XL | 640×360 | ⚡ | ⭐⭐⭐⭐⭐⭐⭐ | Maximum accuracy, 1 stream |
-| **yoloxs** | Small | 640×640 | ⚡⚡⚡⚡ | ⭐⭐⭐⭐ | Balanced performance, 6 streams |
-| **yoloxs_512** | Small | 512×512 | ⚡⚡⚡⚡⚡ | ⭐⭐⭐⭐ | Faster inference, 8 streams |
-| **yoloxm** | Medium | 640×640 | ⚡⚡⚡ | ⭐⭐⭐⭐⭐ | Good accuracy, 4 streams |
-| **yoloxl** | Large | 640×640 | ⚡⚡ | ⭐⭐⭐⭐⭐⭐ | High accuracy, 2 streams |
+| Model | Size | 
+|-------|------|
+| **yolov8n** | Nano |
+| **yolov8s** | Small |
+| **yolov8m** | Medium |
+| **yolov8l** | Large |
+| **yolov8x** | XL |
+| **yoloxs** | Small |
+| **yoloxm** | Medium |
+| **yoloxl** | Large |
 
 #### ▶️ Run with Different Models
 
@@ -1317,10 +1311,10 @@ Options:
 #### 🚀 FRDM i.MX 95
 ```sh
 # Optimal for maximum throughput
-multistream_yolov8 -s 8 --sync false
+multistream_yolo -s 8 --sync false
 
 # Optimal for synchronized playback
-multistream_yolov8 -s 8 --sync true
+multistream_yolo -s 8 --sync true
 ```
 
 #### 💻 FRDM i.MX 8M Plus
@@ -1683,7 +1677,4 @@ If issues persist after trying these troubleshooting steps:
 4. Ensure all software packages are up to date
 
 ## 📄 Licensing
-
-NXP Proprietary. This software is owned or controlled by NXP and may only be used strictly in accordance with the applicable license terms. By expressly accepting such terms or by downloading, installing, activating and/or otherwise using the software, you are agreeing that you have read, and that you agree to comply with and are bound by, such license terms. If you do not agree to be bound by the applicable license terms, then you may not retain, install, activate or otherwise use the software.
-
 This example is licensed under the [BSD-3-Clause](./LICENSE.txt) license.
