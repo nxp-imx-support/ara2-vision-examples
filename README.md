@@ -24,12 +24,9 @@ semantic segmentation.
 
 | Platform            | Supported |
 | ------------------- | :-------: |
-| [FRDM i.MX 8M Plus] |    ✅     |
-| [FRDM i.MX 95]      |    ✅     |
-| FRDM i.MX 95 PRO    |    ✅     |
-
-[FRDM i.MX 8M Plus]: (https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX8MPLUS)
-[FRDM i.MX 95]: (https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX95)
+| [FRDM i.MX 8M Plus](https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX8MPLUS) |    ✅     |
+| [FRDM i.MX 95](https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX95)      |    ✅     |
+| [FRDM i.MX 95 PRO](https://www.nxp.com/FRDM-IMX95-PRO)  |    ✅     |
 
 ## 📋 Requirements
 
