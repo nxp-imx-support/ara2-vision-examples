@@ -66,6 +66,10 @@ VIDEOS DOWNLOADED BY THIS SCRIPT:
   video_5.mp4 - https://cdn.pixabay.com/video/2022/10/31/137317-766503093_large.mp4
   video_6.mp4 - https://cdn.pixabay.com/video/2015/10/16/1046-142621379_large.mp4
   video_7.mp4 - https://cdn.pixabay.com/video/2025/04/23/273921_large.mp4
+  video_8.mp4 - https://cdn.pixabay.com/video/2016/05/12/3175-166339863_large.mp4
+  video_9.mp4 - https://cdn.pixabay.com/video/2020/01/30/31777-388997457_large.mp4
+  video_10.mp4 - https://cdn.pixabay.com/video/2022/02/04/106705-673786412_large.mp4
+  video_11.mp4 - https://cdn.pixabay.com/video/2016/11/15/6387-191695740_large.mp4
 
 LICENSE SUMMARY:
 ----------------
@@ -174,6 +178,10 @@ URLS=(
     "https://cdn.pixabay.com/video/2022/10/31/137317-766503093_large.mp4"
     "https://cdn.pixabay.com/video/2015/10/16/1046-142621379_large.mp4"
     "https://cdn.pixabay.com/video/2025/04/23/273921_large.mp4"
+    "https://cdn.pixabay.com/video/2016/05/12/3175-166339863_large.mp4"
+    "https://cdn.pixabay.com/video/2020/01/30/31777-388997457_large.mp4"
+    "https://cdn.pixabay.com/video/2022/02/04/106705-673786412_large.mp4"
+    "https://cdn.pixabay.com/video/2016/11/15/6387-191695740_large.mp4"
 )
 
 # ---------------------------
@@ -190,7 +198,7 @@ INDEX=0
 
 for URL in "${URLS[@]}"; do
     INPUT="video${INDEX}.mp4"
-    OUTPUT="video_${INDEX}.mp4"
+    OUTPUT="video_${INDEX}.ts"
 
     echo "--- Downloading video ${INDEX} ---"
     if wget -q -O "${INPUT}" "${URL}"; then
@@ -199,12 +207,11 @@ for URL in "${URLS[@]}"; do
             filesrc location="${INPUT}" typefind=true ! \
             decodebin3 ! \
             imxvideoconvert_g2d ! \
-            video/x-raw,width=640,height=360 ! \
-            videorate ! \
-            video/x-raw,framerate=30/1 ! \
+            video/x-raw ! \
             v4l2h264enc ! \
             h264parse ! \
-            filesink location="${OUTPUT_DIR}/${OUTPUT}" > /dev/null 2>&1; then 
+            mpegtsmux ! \
+            filesink location="${OUTPUT_DIR}/video_${INDEX}.ts" > /dev/null 2>&1; then
             
             SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             echo "--- Done: ${OUTPUT} ---"

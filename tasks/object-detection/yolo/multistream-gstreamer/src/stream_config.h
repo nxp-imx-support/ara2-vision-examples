@@ -47,6 +47,10 @@ class VideoFileConfig : public StreamSourceConfig {
     return StreamSourceType::VIDEO_FILE;
   }
 
+  const std::string& get_filepath() const {
+    return filepath_;
+  }
+
   std::string build_gstreamer_source(int stream_id) const override;
   std::string to_string() const override;
 

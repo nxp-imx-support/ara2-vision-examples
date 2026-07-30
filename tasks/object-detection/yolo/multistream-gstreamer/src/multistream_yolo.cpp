@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2025, Kinara, Inc. All rights reserved.
  * Copyright 2025-2026 NXP
@@ -88,8 +89,8 @@ bool validate_model_exists(const std::string& model_path) {
 }
 
 /**
- * @brief Discover MP4 video files in a directory
- * @param directory Path to scan for .mp4 files
+ * @brief Discover ts video files in a directory
+ * @param directory Path to scan for .ts files
  * @return Sorted vector of full file paths (up to 8 files)
  */
 std::vector<std::string> discover_video_files(const std::string& directory) {
@@ -110,18 +111,20 @@ std::vector<std::string> discover_video_files(const std::string& directory) {
       continue;
     }
 
-    // Check for .mp4 extension (case-insensitive)
-    if (filename.length() >= 4) {
-      std::string ext = filename.substr(filename.length() - 4);
+    // Check for .ts extension (case-insensitive)
+    size_t dot_pos = filename.find_last_of('.');
+    if (dot_pos != std::string::npos) {
+      std::string ext = filename.substr(dot_pos);
       std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-      if (ext == ".mp4") {
+
+     if (ext == ".ts") {
         std::string full_path = directory + "/" + filename;
-        // Verify it's a regular file
+
         struct stat st;
         if (stat(full_path.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
-          video_files.push_back(full_path);
+            video_files.push_back(full_path);
         }
-      }
+     }
     }
   }
   closedir(dir);
@@ -129,9 +132,9 @@ std::vector<std::string> discover_video_files(const std::string& directory) {
   // Sort for deterministic, reproducible ordering
   std::sort(video_files.begin(), video_files.end());
 
-  // Cap at 8 files maximum
-  if (video_files.size() > 8) {
-    video_files.resize(8);
+  // Cap at 16 files maximum
+  if (video_files.size() > 16) {
+    video_files.resize(16);
   }
 
   return video_files;
@@ -759,33 +762,27 @@ ModelResolution Demo::get_model_resolution(const std::string& model_path) {
       main_loop_(nullptr),
       model_(model),
       sock_("/var/run/proxy.sock"),
-      video_width_(640),
-      video_height_(360),
+      video_widths_(streams_, 640),
+      video_heights_(streams_, 360),
+      original_widths_(streams_, 640),
+      original_heights_(streams_, 360),
+      window_width(1920),
+      window_height(1080),
       no_bbox_(false),
       no_osd_stats_(false),
       only_bbox_(false),
+      debug_pipeline_(false),
       console_interval_(console_interval),
       stream_config_(std::make_unique<StreamConfigManager>()) {
   main_loop_ = g_main_loop_new(nullptr, FALSE);
 
   const auto [model_width, model_height, success] = get_model_resolution(model);
+  model_width_  = model_width;
+  model_height_ = model_height;
 
   if (!success) {
     g_print("Using default resolution: %dx%d\n", model_width, model_height);
   }
-
-  // Source resolution (input source - camera, video, RTSP, etc.)
-  int src_width = 1920;
-  int src_height = 1080;
-
-  // Calculate letterbox dimensions
-  float gain = std::min((float)model_width / src_width, (float)model_height / src_height);
-  int scaled_width = (int)(src_width * gain);
-  int scaled_height = (int)(src_height * gain);
-
-  // Set the calculated resolution for pipeline
-  video_width_ = scaled_width;
-  video_height_ = scaled_height;
 }
 Demo::~Demo() { cleanup(); }
 
@@ -839,6 +836,11 @@ void Demo::list_cameras() {
   std::cout << "----------------------------------------\n" << std::endl;
 }
 
+void Demo::set_window_size(int width, int height) {
+  window_width = width;
+  window_height = height;
+}
+
 void Demo::set_no_bbox(bool no_bbox) {
   no_bbox_ = no_bbox;
   for (auto& detection : detections_) {
@@ -858,6 +860,10 @@ void Demo::set_only_bbox(bool only_bbox) {
   for (auto& detection : detections_) {
      detection->set_only_bbox(only_bbox);
   }
+}
+
+void Demo::set_debug(bool enable) {
+    debug_pipeline_ = enable;
 }
 
 void Demo::print_total_stats() {
@@ -895,10 +901,30 @@ bool Demo::start() {
       pos += 3;
   }
 
+  std::cout << "\n";
+  std::cout << "┌──────────┬────────────────────┬───────────────────┐\n";
+  std::cout << "│ Stream   │ Initial Resolution │ Final Resolution  │\n";
+  std::cout << "├──────────┼────────────────────┼───────────────────┤\n";
+
+  for (int i = 0; i < get_streams_count(); ++i) {
+       std::cout << "│ " << std::setw(8) << std::left << i << " │ "
+              << std::setw(18) << std::left
+              << (std::to_string(get_original_width(i)) + "x" + std::to_string(get_original_height(i))) << " │ "
+              << std::setw(17) << std::left
+              << (std::to_string(video_widths_[i]) + "x" + std::to_string(video_heights_[i])) << " │\n";
+  }
+  std::cout << "└──────────┴────────────────────┴───────────────────┘\n";
+  std::cout << "\n";
+
   std::cout << "\n----------------------------------------" << std::endl;
   std::cout << "LAUNCHING GSTREAMER PIPELINE:" << std::endl;
   std::cout << "----------------------------------------" << std::endl;
 
+  if (debug_pipeline_) {
+        std::cout << "========================================\n" << std::endl;
+	std::cout << p << std::endl;
+        std::cout << "========================================\n" << std::endl;
+  }
   GError* error = nullptr;
   pipeline_ = gst_parse_launch(pipeline_str.c_str(), &error);
 
@@ -959,7 +985,7 @@ bool Demo::start() {
 std::string Demo::build_compositor(int number_of_streams) {
   int rows, cols;
   // Optimize grid layout for different stream counts
-  switch (number_of_streams) {
+    switch (number_of_streams) {
     case 1:
       rows = 1;
       cols = 1;
@@ -983,16 +1009,28 @@ std::string Demo::build_compositor(int number_of_streams) {
       rows = 2;
       cols = 4;
       break;
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+      rows = 3;
+      cols = 4;
+      break;
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+      rows = 4;
+      cols = 4;
+      break;
     default:
-      rows = 2;
+      rows = 4;
       cols = static_cast<int>(
           std::ceil(static_cast<double>(number_of_streams) / rows));
   }
 
-  constexpr int width = 1920;
-  constexpr int height = 1080;
-  const int stream_width = width / cols;
-  const int stream_height = height / rows;
+  const int stream_width = window_width / cols;
+  const int stream_height = window_height / rows;
 
   std::string detection_pipeline;
   std::string compositor_pipeline;
@@ -1026,8 +1064,8 @@ std::string Demo::build_compositor(int number_of_streams) {
                           " endpoint=" + std::to_string(endpoint_) +
                           " group=" + std::to_string(group_id) +
                           " stream=" + std::to_string(num) +
-                          " orig-width=" + std::to_string(video_width_) +
-                          " orig-height=" + std::to_string(video_height_) +
+                          " orig-width=" + std::to_string(video_widths_[num]) +
+                          " orig-height=" + std::to_string(video_heights_[num]) +
                           " iou=" + std::to_string(0.45) +
 			                    " nms=" + std::to_string(0.25) +
                           " use-shm=true shm-path=/dev/shm/ara_inf_" +
@@ -1075,10 +1113,15 @@ std::string Demo::build_compositor(int number_of_streams) {
     compositor_pipeline += "sink_" + std::to_string(num) + "::keep-ratio=true ";
   }
 
+  // Build waylandsink with configurable window size
+  std::string waylandsink_config =
+      "! waylandsink name=wlsink sync=" + std::string(sync_ ? "true" : "false");
+
+  waylandsink_config += " window-width=" + std::to_string(window_width) +
+                          " window-height=" + std::to_string(window_height);
   const std::string entire_pipeline =
-      "imxcompositor_g2d name=comp background=0xFF000000 " + compositor_pipeline +
-      "! waylandsink name=wlsink sync=" + std::string(sync_ ? "true" : "false") +
-      " " + detection_pipeline;
+      "imxcompositor_g2d name=comp background=0xFF000000 " +
+      compositor_pipeline + waylandsink_config + " " + detection_pipeline;
 
   return entire_pipeline;
 }
@@ -1161,18 +1204,135 @@ void Demo::cleanup() {
   detections_.clear();
 }
 
+struct VideoInfoData {
+    int width = 0;
+    int height = 0;
+    bool found = false;
+};
+
+static void on_pad_added(GstElement* decodebin, GstPad* pad, gpointer user_data)
+{
+    VideoInfoData* data = (VideoInfoData*)user_data;
+
+    GstCaps* caps = gst_pad_get_current_caps(pad);
+    if (!caps)
+        caps = gst_pad_query_caps(pad, nullptr);
+
+    if (!caps)
+        return;
+
+    GstStructure* str = gst_caps_get_structure(caps, 0);
+
+    if (gst_structure_has_field(str, "width") &&
+        gst_structure_has_field(str, "height")) {
+
+        gst_structure_get_int(str, "width", &data->width);
+        gst_structure_get_int(str, "height", &data->height);
+
+        data->found = true;
+    }
+
+    gst_caps_unref(caps);
+}
+
+bool get_video_resolution_caps(const std::string& filepath,
+                               int& width, int& height)
+{
+    gst_init(nullptr, nullptr);
+
+    VideoInfoData data;
+
+    GstElement* pipeline = gst_pipeline_new("pipeline");
+    GstElement* src = gst_element_factory_make("filesrc", "src");
+    GstElement* decodebin = gst_element_factory_make("decodebin", "decodebin");
+
+    if (!pipeline || !src || !decodebin)
+        return false;
+
+    g_object_set(src, "location", filepath.c_str(), NULL);
+
+    gst_bin_add_many(GST_BIN(pipeline), src, decodebin, NULL);
+    gst_element_link(src, decodebin);
+
+    g_signal_connect(decodebin, "pad-added", G_CALLBACK(on_pad_added), &data);
+
+    gst_element_set_state(pipeline, GST_STATE_PAUSED);
+
+    GstStateChangeReturn ret =
+        gst_element_get_state(pipeline, NULL, NULL, 3 * GST_SECOND);
+
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+
+    if (data.found) {
+        width = data.width;
+        height = data.height;
+    }
+
+    return data.found;
+}
+
 //==============================================================================
 // Source Pipeline Building
 //==============================================================================
 
 std::string Demo::build_source_pipeline(int stream_id) {
+  std::string pipeline;
+  video_widths_[stream_id]  = 640;
+  video_heights_[stream_id] = 360;
+  int src_w = 0;
+  int src_h = 0;
+
   // Check if we have a configured source for this stream
   if (stream_id < static_cast<int>(stream_config_->get_stream_count())) {
     const StreamSourceConfig* config = stream_config_->get_stream(stream_id);
     if (config) {
-      return config->build_gstreamer_source(stream_id);
+	if (auto video_cfg =
+                    dynamic_cast<const VideoFileConfig*>(config)) {
+
+                if (!get_video_resolution_caps(
+                        video_cfg->get_filepath(), src_w, src_h)) {
+			std::cerr << "Warning: Failed to detect video resolution, using fallback 1920x1080\n";
+			src_w = 1920;
+			src_h = 1080;
+                }
+		original_widths_[stream_id]  = src_w;
+ 	        original_heights_[stream_id] = src_h;
+                float gain = std::min(
+                    (float)model_width_ / src_w,
+                    (float)model_height_ / src_h);
+
+                int scaled_w = (int)(src_w * gain);
+                int scaled_h = (int)(src_h * gain);
+
+                video_widths_[stream_id]  = scaled_w;
+                video_heights_[stream_id] = scaled_h;
+
+                pipeline += video_cfg->build_gstreamer_source(stream_id);
+
+                pipeline += "! imxvideoconvert_g2d "
+                            "! video/x-raw,format=BGRx,width=" +
+                            std::to_string(scaled_w) +
+                            ",height=" + std::to_string(scaled_h) + " ";
+
+	        pipeline += "! tee name=t" + std::to_string(stream_id) + " ";
+	        pipeline += "t" + std::to_string(stream_id) + ". ! queue ";
+                return pipeline;
+            }
+            
+            pipeline += config->build_gstreamer_source(stream_id);
+            pipeline += "! imxvideoconvert_g2d "
+                        "! video/x-raw,format=BGRx,width=" +
+                        std::to_string(video_widths_[stream_id]) +
+                        ",height=" +
+                        std::to_string(video_heights_[stream_id]) + " ";
+
+	    pipeline += "! tee name=t" + std::to_string(stream_id) + " ";
+	    pipeline += "t" + std::to_string(stream_id) + ". ! queue ";
+
+            return pipeline;
+        }
     }
-  }
 
   // Fallback: dynamically discover videos in sample directory
   auto video_files = discover_video_files(SAMPLE_VIDEOS_DIR);
@@ -1187,29 +1347,33 @@ std::string Demo::build_source_pipeline(int stream_id) {
   } else {
     // Last resort: try legacy naming convention
     video_path = SAMPLE_VIDEOS_DIR + "/video_" +
-                 std::to_string(stream_id) + ".mp4";
+                 std::to_string(stream_id) + ".ts";
     g_printerr("Warning: No videos discovered, trying legacy path: %s\n",
                video_path.c_str());
   }
 
-  std::string pipeline;
+  if (!get_video_resolution_caps(video_path, src_w, src_h)) {
+           std::cerr << "Warning: Failed to detect input video resolution \n";
+  }
+  original_widths_[stream_id]  = src_w;
+  original_heights_[stream_id] = src_h;
   pipeline += "multifilesrc location=" + video_path +
               " loop=true name=src_" + std::to_string(stream_id) + " ";
-  pipeline += "! h264parse ! v4l2h264dec ";
+  pipeline += "! tsdemux name=demux_" + std::to_string(stream_id) + " ";
+  pipeline += "demux_" + std::to_string(stream_id) + ". ! queue ! h264parse ! v4l2h264dec ";
   pipeline += "! imxvideoconvert_g2d ! video/x-raw,format=BGRx,width=" +
-              std::to_string(video_width_) + ",height=" +
-              std::to_string(video_height_) + " ";
+                 std::to_string(video_widths_[stream_id]) +
+                 ",height=" + std::to_string(video_heights_[stream_id]) + " ";
   pipeline += "! tee name=t" + std::to_string(stream_id) + " ";
   return pipeline;
 }
-
 //==============================================================================
 // Main Function
 //==============================================================================
 void print_usage(const char* prog_name) {
   std::cout << "Usage: " << prog_name << " [OPTIONS]\n"
             << "Options:\n"
-            << "  -s, --stream <1-8>          Number of streams to process\n"
+            << "  -s, --stream <1-16>          Number of streams to process\n"
             << "                              (default: auto-detected from available videos)\n"
             << "                              Note: Ignored when using -f/--config\n"
             << "  -e, --endpoint <0-10>       ARA2 Endpoint to use (default: 0)\n"
@@ -1221,6 +1385,9 @@ void print_usage(const char* prog_name) {
             << "                              YOLOx: yoloxs, yoloxs_512, yoloxm, yoloxl, yoloxx\n"
             << "  -t                          Console stats will be refreshed each t seconds, To disable set t to 0\n"
             << "  -p, --perf-stats            Enable detailed performance stats every 5 seconds\n"
+            << "\nWindow Configuration:\n"
+            << "  --width <pixels>            Window width (default: 1920)\n"
+            << "  --height <pixels>           Window height (default: 1080)\n"
             << "\nStream Source Options:\n"
             << "  -c, --camera <device>       Camera device (e.g., /dev/video0)\n"
             << "  -r, --rtsp <url>            RTSP stream URL\n"
@@ -1233,10 +1400,11 @@ void print_usage(const char* prog_name) {
             << "  --no-bbox                   Draw no bounding boxes and labels\n"
             << "  --no-osd-stats              No on screen stats display\n"
             << "  --only-bbox                 Draw only bounding boxes, no labels\n"
+            << "  -d, --debug                 To debug the pipeline \n"
             << "  -h, --help                  Show this help message\n"
             << "\nDefault Behavior:\n"
             << "  When no source flags (-c, -v, -r, --test-pattern, -f) are used,\n"
-            << "  the application auto-discovers .mp4 files in:\n"
+            << "  the application auto-discovers .ts files in:\n"
             << "    " << SAMPLE_VIDEOS_DIR << "\n"
             << "  and sets the stream count to the number of videos found (max 8).\n";
 }
@@ -1252,6 +1420,10 @@ int main(int argc, char* argv[]) {
   bool no_osd_stats = false;
   int console_interval = 2;
   bool only_bbox = false;
+  bool debug_pipeline = false;
+
+  int window_width = 1920;
+  int window_height = 1080;
 
   std::string config_file;
   auto stream_config = std::make_unique<StreamConfigManager>();
@@ -1266,7 +1438,23 @@ int main(int argc, char* argv[]) {
     if (arg == "-h" || arg == "--help") {
       print_usage(argv[0]);
       return 0;
-    } else if (arg == "--list-cameras") {
+    } else if (arg == "--width") {
+      if (i + 1 < argc) {
+        window_width = std::atoi(argv[++i]);
+        if (window_width < 320 || window_width > 7680) {
+          std::cerr << "Error: width must be between 320 and 7680\n";
+          return 1;
+        }
+      }
+    } else if (arg == "--height") {
+      if (i + 1 < argc) {
+        window_height = std::atoi(argv[++i]);
+        if (window_height < 240 || window_height > 4320) {
+          std::cerr << "Error: height must be between 240 and 4320\n";
+          return 1;
+        }
+       }
+      } else if (arg == "--list-cameras") {
       gst_init(&argc, &argv);
       Demo::list_cameras();
       gst_deinit();
@@ -1276,6 +1464,8 @@ int main(int argc, char* argv[]) {
         config_file = argv[++i];
         source_explicitly_set = true;
       }
+    } else if (arg == "-d" || arg == "--debug") {
+           debug_pipeline = true;
     } else if (arg == "-c" || arg == "--camera") {
       if (i + 1 < argc) {
         stream_config->add_stream(
@@ -1309,8 +1499,8 @@ int main(int argc, char* argv[]) {
       if (i + 1 < argc) {
         streams = std::atoi(argv[++i]);
         streams_explicitly_set = true;
-        if (streams < 1 || streams > 8) {
-          std::cerr << "Error: stream count must be between 1 and 8\n";
+        if (streams < 1 || streams > 16) {
+          std::cerr << "Error: stream count must be between 1 and 16\n";
           return 1;
         }
       }
@@ -1393,8 +1583,8 @@ int main(int argc, char* argv[]) {
     config_file_loaded = true;
     streams = static_cast<int>(stream_config->get_stream_count());
 
-    if (streams < 1 || streams > 8) {
-      std::cerr << "Error: JSON file must define between 1 and 8 streams (found "
+    if (streams < 1 || streams > 16) {
+      std::cerr << "Error: JSON file must define between 1 and 16 streams (found "
                 << streams << ")\n";
       return 1;
     }
@@ -1441,11 +1631,11 @@ int main(int argc, char* argv[]) {
       std::cerr << "\n========================================\n"
                 << "  ERROR: No Video Files Found\n"
                 << "========================================\n"
-                << "No .mp4 files found in:\n"
+                << "No .ts files found in:\n"
                 << "  " << SAMPLE_VIDEOS_DIR << "\n\n"
                 << "Please either:\n"
-                << "  1. Place .mp4 files in the directory above\n"
-                << "  2. Specify a video file:  -v /path/to/video.mp4\n"
+                << "  1. Place .ts files in the directory above\n"
+                << "  2. Specify a video file:  -v /path/to/video.ts\n"
                 << "  3. Use a camera:          -c /dev/video0\n"
                 << "  4. Use a config file:     -f config.json\n"
                 << "  5. Use a test pattern:    --test-pattern\n"
@@ -1467,8 +1657,8 @@ int main(int argc, char* argv[]) {
   // Final validation of stream count
   if (streams < 1) {
     streams = 1;
-  } else if (streams > 8) {
-    streams = 8;
+  } else if (streams > 16) {
+    streams = 16;
   }
 
   // VALIDATE MODEL EXISTS BEFORE PROCEEDING
@@ -1485,6 +1675,8 @@ int main(int argc, char* argv[]) {
             demo.set_no_bbox(no_bbox);
             demo.set_no_osd_stats(no_osd_stats);
             demo.set_only_bbox(only_bbox);
+            demo.set_window_size(window_width, window_height);
+            demo.set_debug(debug_pipeline);
             std::cout << "\n========================================\n"
                       << "  Ara YOLOv8 Multi-Stream Demo\n"
                       << "========================================\n"
@@ -1493,7 +1685,7 @@ int main(int argc, char* argv[]) {
                       << "Group:      " << group << "\n"
                       << "Sync:       " << (sync ? "true" : "false") << "\n"
                       << "Model Used: " << model << "\n"
-                      << "Resolution: " << demo.get_video_width() << "x" << demo.get_video_height() << "\n";
+                      << "Window:     " << window_width << "x" << window_height << "\n";
 
             if (enable_perf_stats) {
               std::cout << "Perf Stats: ENABLED (stream 0 only)\n";
@@ -1503,8 +1695,6 @@ int main(int argc, char* argv[]) {
             if (config_file_loaded) {
               stream_config->print_summary();
             }
-
-            std::cout << "========================================\n" << std::endl;
 
             // Move stream_config into demo AFTER we're done using it
             demo.set_stream_config(std::move(stream_config));

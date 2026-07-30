@@ -88,7 +88,7 @@ graph LR
 
 ## ✨ Key Features
 
-- 🎥 **Multi-Stream Processing**: Handles 1 to 8 video
+- 🎥 **Multi-Stream Processing**: Handles 1 to 16 videos
   streams concurrently with real-time* object detection
 - 🔀 **Multiple Input Sources**: Support for cameras, video
   files, RTSP streams, and test patterns
@@ -172,7 +172,7 @@ graph LR
 #### 📏 Scalability
 
 - **Stream Configuration**: Dynamically adjustable from 1
-  to 8 streams
+  to 16 streams
 - **Graceful Degradation**: Maintains performance with
   varying stream counts
 
@@ -215,8 +215,6 @@ The application supports multiple input source types:
 - **Formats**: H.264, MP4
 - **Loop Playback**: Automatic restart when file ends
 - **Hardware Decoding**: Accelerated video decoding
-
-
 
 ## ⬇️ Download the Models
 
@@ -327,14 +325,18 @@ stock videos and images.
 
 | Filename     | Source URL                              | Description               |
 |--------------|-----------------------------------------|---------------------------|
-| video_0.mp4  | https://pixabay.com/videos/id-192281/   | Sample video for stream 0 |
-| video_1.mp4  | https://pixabay.com/videos/id-1643/     | Sample video for stream 1 |
-| video_2.mp4  | https://pixabay.com/videos/id-200839/   | Sample video for stream 2 |
-| video_3.mp4  | https://pixabay.com/videos/id-42479/    | Sample video for stream 3 |
-| video_4.mp4  | https://pixabay.com/videos/id-3133/     | Sample video for stream 4 |
-| video_5.mp4  | https://pixabay.com/videos/id-137317/   | Sample video for stream 5 |
-| video_6.mp4  | https://pixabay.com/videos/id-1046/     | Sample video for stream 6 |
-| video_7.mp4  | https://pixabay.com/videos/id-273921/   | Sample video for stream 7 |
+| video_0.ts  | https://pixabay.com/videos/id-192281/   | Sample video for stream 0 |
+| video_1.ts  | https://pixabay.com/videos/id-1643/     | Sample video for stream 1 |
+| video_2.ts  | https://pixabay.com/videos/id-200839/   | Sample video for stream 2 |
+| video_3.ts  | https://pixabay.com/videos/id-42479/    | Sample video for stream 3 |
+| video_4.ts  | https://pixabay.com/videos/id-3133/     | Sample video for stream 4 |
+| video_5.ts  | https://pixabay.com/videos/id-137317/   | Sample video for stream 5 |
+| video_6.ts  | https://pixabay.com/videos/id-1046/     | Sample video for stream 6 |
+| video_7.ts  | https://pixabay.com/videos/id-273921/   | Sample video for stream 7 |
+| video_8.ts  | https://pixabay.com/videos/id-3175/     | Sample video for stream 8 |
+| video_9.ts  | https://pixabay.com/videos/id-31777/    | Sample video for stream 9 |
+| video_10.ts | https://pixabay.com/videos/id-106705/   | Sample video for stream 10 |
+| video_11.ts | https://pixabay.com/videos/id-6387/     | Sample video for stream 11 |
 
 All videos are licensed under the
 [Pixabay Content License][pixabay-license].
@@ -353,9 +355,8 @@ All videos have been processed to the following
 specifications:
 
 - **Resolution:** 640x360 pixels
-- **Frame Rate:** 30 fps
 - **Codec:** H.264
-- **Container:** MP4
+- **Container:** ts
 
 ## 🎬 Download Sample Videos
 
@@ -369,7 +370,7 @@ The installation process will automatically:
 
 - Download 8 sample videos from Pixabay
 - Process and convert them to the required format
-  (640x360 @ 30fps, H.264)
+  (640x360 H.264)
 - Store them in
   `/usr/share/ara2-vision-examples/sample_videos/`
 
@@ -391,12 +392,12 @@ The installation process will automatically:
 
 --- Downloading video 0 ---
 --- Processing video 0 ---
---- Done: video_0.mp4 ---
+--- Done: video_0.ts ---
 ...
 ----------------------------------------
 --- Summary ---
-Total videos: 8
-Successfully processed: 8
+Total videos: 12
+Successfully processed: 12
 Failed: 0
 ----------------------------------------
 
@@ -430,7 +431,7 @@ The script will:
 2. ✅ Create output directory if needed
 3. ✅ Download 8 sample videos from Pixabay
 4. ✅ Process each video using GStreamer (resize to
-   640x360, convert to 30fps, encode as H.264)
+   640x360, encode as H.264)
 5. ✅ Save processed videos to
    `/usr/share/ara2-vision-examples/sample_videos/`
 6. ✅ Display a summary showing successful and failed
@@ -445,15 +446,15 @@ Directory /usr/share/ara2-vision-examples/sample_videos
 already exists.
 --- Downloading video 0 ---
 --- Processing video 0 ---
---- Done: video_0.mp4 ---
+--- Done: video_0.ts ---
 --- Downloading video 1 ---
 --- Processing video 1 ---
---- Done: video_1.mp4 ---
+--- Done: video_1.ts ---
 ...
 ----------------------------------------
 --- Summary ---
-Total videos: 8
-Successfully processed: 8
+Total videos: 12
+Successfully processed: 12
 Failed: 0
 ----------------------------------------
 --- All videos processed successfully ---
@@ -471,19 +472,24 @@ ls -lh /usr/share/ara2-vision-examples/sample_videos/
 **Expected output:**
 
 ```
-total 45M
--rw-r--r-- 1 root root 5.2M Jan 15 10:23 video_0.mp4
--rw-r--r-- 1 root root 6.1M Jan 15 10:24 video_1.mp4
--rw-r--r-- 1 root root 5.8M Jan 15 10:25 video_2.mp4
--rw-r--r-- 1 root root 5.5M Jan 15 10:26 video_3.mp4
--rw-r--r-- 1 root root 5.9M Jan 15 10:27 video_4.mp4
--rw-r--r-- 1 root root 5.4M Jan 15 10:28 video_5.mp4
--rw-r--r-- 1 root root 5.7M Jan 15 10:29 video_6.mp4
--rw-r--r-- 1 root root 5.3M Jan 15 10:30 video_7.mp4
+total 207M
+-rw-r--r-- 1 root  root    16M Jun 24 06:07 video_0.ts
+-rw-r--r-- 1 root  root    15M Jun 24 06:07 video_1.ts
+-rw-r--r-- 1 root  root    23M Jun 24 06:08 video_10.ts
+-rw-r--r-- 1 root  root    15M Jun 24 06:08 video_11.ts
+-rw-r--r-- 1 root  root    27M Jun 24 06:07 video_2.ts
+-rw-r--r-- 1 root  root    22M Jun 24 06:07 video_3.ts
+-rw-r--r-- 1 root  root    13M Jun 24 06:07 video_4.ts
+-rw-r--r-- 1 root  root    17M Jun 24 06:07 video_5.ts
+-rw-r--r-- 1 root  root    18M Jun 24 06:08 video_6.ts
+-rw-r--r-- 1 root  root   8.2M Jun 24 06:08 video_7.ts
+-rw-r--r-- 1 root  root    18M Jun 24 06:08 video_8.ts
+-rw-r--r-- 1 root  root    21M Jun 24 06:08 video_9.ts
+-rw-r--r-- 1 49177 weston  506 Jun 22 07:09 videos.txt
 ```
 
-You should see 8 video files named `video_0.mp4` through
-`video_7.mp4`.
+You should see 8 video files named `video_0.ts` through
+`video_11.ts`.
 
 ### 🔍 Troubleshooting Video Downloads
 
@@ -544,7 +550,7 @@ Ensure your videos:
 - Are in H.264/MP4 format
 - Have reasonable resolution (recommended: 640x360 or
   higher)
-- Are named following the pattern: `video_N.mp4` (where
+- Are named following the pattern: `video_N.ts` (where
   N is 0-7)
 
 If you need to convert videos to a compatible format, use
@@ -561,11 +567,11 @@ ffmpeg -i <FileName.mp4> \
   -profile:v baseline \
   -level 4.0 \
   -pix_fmt yuv420p \
-  -vf scale=640:360 \
-  -r 30 \
   -b:v 2M \
-  -f h264 \
-  <ExitFileName.mp4>
+  -c:a aac \
+  -b:a 128k \
+  -f mpegts \
+  <ExitFileName.ts>
 ```
 
 **Parameters explained:**
@@ -575,7 +581,6 @@ ffmpeg -i <FileName.mp4> \
   compatibility
 - `-pix_fmt yuv420p`: Standard pixel format
 - `-vf scale=640:360`: Resize to 640x360 resolution
-- `-r 30`: Set framerate to 30 fps
 - `-b:v 2M`: Set bitrate to 2 Mbps
 
 #### 🎯 On FRDM i.MX Board
@@ -588,12 +593,11 @@ gst-launch-1.0 \
   filesrc location=<fileName.mp4> typefind=true ! \
   decodebin3 ! \
   imxvideoconvert_g2d ! \
-  video/x-raw,width=640,height=360 ! \
-  videorate ! \
-  video/x-raw,framerate=30/1 ! \
+  video/x-raw ! \
   v4l2h264enc ! \
   h264parse ! \
-  filesink location=<ExitFileName.mp4>
+  mpegtsmux ! \
+  filesink location=<ExitFileName.ts>
 ```
 
 **Pipeline explained:**
@@ -602,7 +606,6 @@ gst-launch-1.0 \
 - `decodebin3`: Automatically decode the input format
 - `imxvideoconvert_g2d`: Hardware-accelerated format
   conversion
-- `videorate`: Adjust framerate to 30 fps
 - `v4l2h264enc`: Hardware-accelerated H.264 encoding
 - `filesink`: Write output file
 
@@ -629,7 +632,7 @@ gst-launch-1.0 \
   `-v` flag
 
 > **💡 Tip:** The sample videos are optimized for
-> multi-stream processing (640x360 @ 30fps, H.264). If
+> multi-stream processing (640x360, H.264). If
 > you want to use your own videos, ensure they are in a
 > compatible format (H.264, H.265, MP4) and consider
 > using similar resolution/framerate settings for optimal
@@ -760,18 +763,18 @@ multistream_yolo -s 4
 
 ```sh
 # Single video file
-multistream_yolo -s 1 -v /path/to/video.mp4
+multistream_yolo -s 1 -v /path/to/video.ts
 
 # Multiple video files
 multistream_yolo -s 3 \
-  -v /path/to/video1.mp4 \
-  -v /path/to/video2.mp4 \
-  -v /path/to/video3.mp4
+  -v /path/to/video1.ts \
+  -v /path/to/video2.ts \
+  -v /path/to/video3.ts
 
 # Mix of video files (short form)
 multistream_yolo -s 2 \
-  --video video1.mp4 \
-  --video video2.mp4
+  --video video1.ts \
+  --video video2.ts
 ```
 
 ### 🎨 Test Pattern Sources
@@ -812,23 +815,23 @@ multistream_yolo -s 2 \
 # Camera + Video File
 multistream_yolo -s 2 \
   -c /dev/video0 \
-  -v video.mp4
+  -v video.ts
 
 # Camera + RTSP + Video + Test Pattern
 multistream_yolo -s 4 \
   -c /dev/video0 \
   -r rtsp://camera.local/stream \
-  -v video.mp4 \
+  -v video.ts \
   --test-pattern
 
-# Complex mix of 8 streams
-multistream_yolo -s 8 \
+# Complex mix of 16 streams
+multistream_yolo -s 16 \
   -c /dev/video0 \
   -c /dev/video1 \
   -r rtsp://cam1.local/stream \
   -r rtsp://cam2.local/stream \
-  -v video1.mp4 \
-  -v video2.mp4 \
+  -v video1.ts \
+  -v video2.ts \
   --test-pattern \
   --test-pattern
 ```
@@ -867,7 +870,7 @@ Create a file `streams.json`:
     },
     {
       "type": "video",
-      "filepath": "/path/to/video.mp4"
+      "filepath": "/path/to/video.ts"
     },
     {
       "type": "test_pattern",
@@ -1153,7 +1156,7 @@ multistream_yolo -s 4 \
 #### 🚀 Example 4: Maximum Throughput Configuration
 
 ```sh
-multistream_yolo -s 8 \
+multistream_yolo -s 16 \
   -m yolov8n \
   --sync false \
   --group pcie \
@@ -1197,13 +1200,25 @@ multistream_yolo -s 4 \
   -t 2
 ```
 
+#### 📊 Example 8: Custom Window Size for Multi-Stream Display
+
+This controls how the tiled streams are rendered on screen.
+
+```sh
+multistream_yolo \
+  --video video_1.mp4 \
+  --video video_2.mp4 \
+  --width 1280 \
+  --height 720
+```
+
 ### 📝 Command-Line Reference
 
 ```sh
 multistream_yolo [OPTIONS]
 
 Options:
-  -s, --stream <1-8>      Number of streams (default: 8)
+  -s, --stream <1-16>      Number of streams (default: 8)
   -e, --endpoint <0-10>   ARA2 Endpoint (default: 0)
   -g, --group <pcie|all>  Device group (default: all)
   -y, --sync <true|false> Enable sync (default: false)
@@ -1213,7 +1228,16 @@ Options:
                           (default: 2)
   -p, --perf-stats        Enable detailed performance
                           statistics (default: disabled)
-  
+  -r, --rtsp <url>        RTSP stream URL
+  -v, --video <file>      Video file path
+  --test-pattern          Use test pattern source
+  -f, --config <file>     Load stream configuration from JSON file
+                          (automatically sets stream count from file)
+
+  Waylandsink window Configuration:
+  --width <pixels>        Window width (default: 1920)
+  --height <pixels>       Window height (default: 1080)
+
   📹 Camera Options:
   -c, --camera <device>   Camera device (e.g.,
                           /dev/video0)
@@ -1230,9 +1254,11 @@ Options:
   --no-bbox               Disable bounding boxes
   --no-osd-stats          Disable OSD statistics
   --only-bbox             Show only boxes, no labels
-  
+
+  -d, --debug             To debug the pipeline
   -h, --help              Show help message
 ```
+
 
 ## 📈 Platform Performance Comparison
 
@@ -1308,17 +1334,17 @@ Options:
 #### 🚀 FRDM i.MX 95
 ```sh
 # Optimal for maximum throughput
-multistream_yolo -s 8 --sync false
+multistream_yolo -s 16 --sync false
 
 # Optimal for synchronized playback
-multistream_yolo -s 8 --sync true
+multistream_yolo -s 16 --sync true
 ```
 
 #### 💻 FRDM i.MX 8M Plus
 ```sh
-# Optimal for maximum throughput (1-8 streams)
+# Optimal for maximum throughput (1-16 streams)
 # RECOMMENDED
-multistream_yolo -s 8 --sync false
+multistream_yolo -s 16 --sync false
 
 # ⚠️ sync=true NOT RECOMMENDED if 5+ streams will be
 # used, video playback exhibits slowness and pauses
@@ -1517,7 +1543,7 @@ multistream_yolo -s 1 \
 - **Use a lighter model variant:**
 
   ```sh
-  multistream_yolo -s 8 -m yolov8n
+  multistream_yolo -s 16 -m yolov8n
   ```
 
 - **Monitor memory usage:**

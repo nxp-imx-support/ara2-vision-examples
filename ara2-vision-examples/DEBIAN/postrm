@@ -21,8 +21,8 @@ ARROW="->"
 WARNING="[!]"
 # Package information
 PACKAGE_NAME="ara2-vision-examples"
-DEMO_EXEC="multistream_yolov8"
-PACKAGE_VERSION="1.1.0"
+DEMO_EXEC="multistream_yolo"
+PACKAGE_VERSION="1.2.0"
 
 # Helper functions for text formatting
 _strip_ansi() {
@@ -151,14 +151,14 @@ remove_runtime_files() {
     # Remove log files (with safe globbing)
     shopt -s nullglob
     
-    for log_pattern in /var/log/ara2-vision* /var/log/multistream_yolov8*; do
+    for log_pattern in /var/log/ara2-vision* /var/log/multistream_yolo*; do
         if [ -e "$log_pattern" ]; then
             rm -rf "$log_pattern" 2>/dev/null && ((files_removed++)) || true
         fi
     done
     
     # Remove temp files
-    for tmp_pattern in /tmp/ara2-vision* /tmp/multistream_yolov8*; do
+    for tmp_pattern in /tmp/ara2-vision* /tmp/multistream_yolo*; do
         if [ -e "$tmp_pattern" ]; then
             rm -rf "$tmp_pattern" 2>/dev/null && ((files_removed++)) || true
         fi
@@ -190,7 +190,7 @@ remove_shared_memory() {
     # Remove shared memory files created by the application
     shopt -s nullglob
     
-    for shm_pattern in /dev/shm/ara_stream_* /dev/shm/ara_inf_* /dev/shm/kinara_yolov8_*; do
+    for shm_pattern in /dev/shm/ara_stream_* /dev/shm/ara_inf_* /dev/shm/kinara_yolo_*; do
         if [ -e "$shm_pattern" ]; then
             rm -f "$shm_pattern" 2>/dev/null && ((shm_removed++)) || true
         fi
@@ -213,7 +213,7 @@ remove_user_data() {
     info "Checking for user configuration data..."
     
     # Remove configuration directories
-    for config_dir in /etc/ara2-vision /etc/multistream_yolov8; do
+    for config_dir in /etc/ara2-vision /etc/multistream_yolo; do
         if [ -d "$config_dir" ]; then
             if rm -rf "$config_dir" 2>/dev/null; then
                 success "Removed configuration directory: $config_dir"
@@ -225,7 +225,7 @@ remove_user_data() {
     done
     
     # Remove configuration files
-    for config_file in /etc/ara2-vision.conf /etc/multistream_yolov8.conf; do
+    for config_file in /etc/ara2-vision.conf /etc/multistream_yolo.conf; do
         if [ -f "$config_file" ]; then
             if rm -f "$config_file" 2>/dev/null; then
                 success "Removed configuration file: $config_file"

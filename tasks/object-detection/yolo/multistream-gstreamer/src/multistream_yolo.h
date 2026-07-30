@@ -32,7 +32,7 @@
 
 // Constants
 namespace {
-constexpr guint64 TIMESTAMP_TOLERANCE = 100000000;  // ~100ms in nanoseconds
+constexpr guint64 TIMESTAMP_TOLERANCE = 150000000;  // ~150ms in nanoseconds
 }  // namespace
 
 // COCO class names (80 classes)
@@ -247,12 +247,16 @@ class Demo {
   void set_stream_config(std::unique_ptr<StreamConfigManager> config);
   void add_stream_source(std::unique_ptr<StreamSourceConfig> config);
   bool load_stream_config(const std::string& filepath);
+  void set_debug(bool enable);
 
-  int get_video_width() const { return video_width_; }
-  int get_video_height() const { return video_height_; }
-  
+  int get_video_width(int stream_id) const { return video_widths_[stream_id]; }
+  int get_video_height(int stream_id) const { return video_heights_[stream_id]; }
+  int get_original_width(int stream_id) const { return original_widths_[stream_id]; }
+  int get_original_height(int stream_id) const { return original_heights_[stream_id]; }
+  int get_streams_count(void) const { return video_widths_.size(); }
   ModelResolution get_model_resolution(const std::string& model_path);
 
+  void set_window_size(int width, int height);
   private:
   // Configuration
   int streams_;
@@ -261,14 +265,21 @@ class Demo {
   bool sync_;
   std::string model_;
   std::string sock_;
-  int video_width_;
-  int video_height_;
+  std::vector<int> video_widths_;
+  std::vector<int> video_heights_;
+  std::vector<int> original_widths_;
+  std::vector<int> original_heights_;
   bool enable_perf_stats_;
   bool no_bbox_;
   bool no_osd_stats_;
   bool only_bbox_;
   int console_interval_;
   std::unique_ptr<StreamConfigManager> stream_config_;
+  int model_width_;
+  int model_height_;
+  bool debug_pipeline_;
+  int window_width;
+  int window_height;
 
   // GStreamer components
   GstElement* pipeline_;

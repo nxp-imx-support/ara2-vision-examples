@@ -15,7 +15,7 @@
     },
     {
       "type": "video_file",
-      "filepath": "/usr/share/ara2-vision-examples/sample_videos/video_0.mp4"
+      "filepath": "/usr/share/ara2-vision-examples/sample_videos/video_0.ts"
     },
     {
       "type": "test_pattern",

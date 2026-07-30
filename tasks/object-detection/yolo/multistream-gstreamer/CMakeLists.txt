@@ -30,6 +30,7 @@ set(RTSDK_PATH $ENV{RTSDK_PATH})
 message(STATUS "RTSDK_PATH: ${RTSDK_PATH}")
 
 set(RTSDK_INCLUDE_DIR "${RTSDK_PATH}/usr/include/sdk_ara")
+set(RTSDK_INCLUDE_BASE_DIR "${RTSDK_PATH}/usr/include")
 set(RTSDK_LIB_DIR "${RTSDK_PATH}/usr/lib")
 set(RTSDK_LIB_FILE "${RTSDK_LIB_DIR}/libaraclient_aarch64.so")
 
@@ -84,11 +85,19 @@ add_executable(launcher_multistream_yolo src/launcher_multistream_yolo.cpp)
 # Include directories for launcher
 target_include_directories(launcher_multistream_yolo PRIVATE
   ${GTK3_INCLUDE_DIRS}
+  ${RTSDK_INCLUDE_DIR}
+  ${RTSDK_INCLUDE_BASE_DIR}
+)
+
+# Link directories for launcher
+target_link_directories(launcher_multistream_yolo PRIVATE
+  ${RTSDK_LIB_DIR}
 )
 
 # Link libraries for launcher
 target_link_libraries(launcher_multistream_yolo
   ${GTK3_LIBRARIES}
+  araclient_aarch64
 )
 
 # Installation

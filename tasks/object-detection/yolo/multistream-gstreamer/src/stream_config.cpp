@@ -50,22 +50,13 @@ std::string VideoFileConfig::build_gstreamer_source(int stream_id) const {
 
     std::string codec = detect_codec_gst(filepath_);
 
-    if (codec == "h264") {
-        pipeline << "multifilesrc loop=true location=" << filepath_ << " ! ";
-        pipeline << "h264parse ! v4l2h264dec ";
+    pipeline << "multifilesrc loop=true location=" << filepath_ << " ! ";
+    pipeline << "tsdemux name=demux_" << stream_id << " ";
 
-    } else if (codec == "h265") {
-
-        pipeline << "multifilesrc loop=true location=" << filepath_ << " ! ";
-        pipeline << "tsdemux name=demux_" << stream_id << " ";
+    if (codec == "h264")
+    	pipeline << "demux_" << stream_id << ". ! h264parse ! v4l2h264dec ";
+    else if (codec == "h265")
         pipeline << "demux_" << stream_id << ". ! h265parse ! v4l2h265dec ";
-
-    }
-
-    pipeline << "! imxvideoconvert_g2d ";
-    pipeline << "! video/x-raw,width=640,height=360,format=BGRx ";
-
-    pipeline << "! tee name=t" << stream_id << " ";
 
     return pipeline.str();
 }
@@ -88,9 +79,6 @@ std::string CameraV4L2Config::build_gstreamer_source(int stream_id) const {
            << ",height=" << height_ 
            << ",framerate=" << fps_ << "/1 ";
   pipeline << "! queue max-size-buffers=1 leaky=downstream ";
-  pipeline << "! imxvideoconvert_g2d ! video/x-raw,format=BGRx,width=640,height=360 ";
-  pipeline << "! videorate ! video/x-raw,framerate=30/1 ";
-  pipeline << "! tee name=t" << stream_id << " ";
   
   return pipeline.str();
 }
@@ -119,14 +107,9 @@ std::string RTSPConfig::build_gstreamer_source(int stream_id) const {
   
   
   pipeline << " name=src_" << stream_id << " ";
-  
-  // Add caps filter to specify the media type
-  pipeline << "! application/x-rtp,media=video,encoding-name=H264 ";
-  
-  pipeline << "! rtph264depay ! h264parse ! v4l2h264dec ";
-  pipeline << "! imxvideoconvert_g2d ! video/x-raw,format=BGRx,width=640,height=360 ";
-  pipeline << "! tee name=t" << stream_id << " ";
-  
+  pipeline << "! application/x-rtp,media=video "
+           << "! decodebin3 ";
+
   return pipeline.str();
 }
 std::string RTSPConfig::to_string() const {
