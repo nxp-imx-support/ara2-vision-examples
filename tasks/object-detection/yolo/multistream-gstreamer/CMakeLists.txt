@@ -29,7 +29,7 @@ endif()
 set(RTSDK_PATH $ENV{RTSDK_PATH})
 message(STATUS "RTSDK_PATH: ${RTSDK_PATH}")
 
-set(RTSDK_INCLUDE_DIR "${RTSDK_PATH}/usr/include/sdk_ara")
+set(RTSDK_INCLUDE_DIR "${RTSDK_PATH}/usr/include/ara2")
 set(RTSDK_INCLUDE_BASE_DIR "${RTSDK_PATH}/usr/include")
 set(RTSDK_LIB_DIR "${RTSDK_PATH}/usr/lib")
 set(RTSDK_LIB_FILE "${RTSDK_LIB_DIR}/libaraclient_aarch64.so")

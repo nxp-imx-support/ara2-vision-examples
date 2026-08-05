@@ -55,7 +55,7 @@ export RTSDK_PATH=<path_to_your_rtsdk>
 **Example:**
 
 ```sh
-export RTSDK_PATH=<>/rt-sdk-ara2/rt-sdk-ara2/
+export RTSDK_PATH=/rt-sdk-ara2/rt-sdk-ara2/
 ```
 
 3. Run the build script. Make sure you have the NXP toolchain

@@ -94,7 +94,7 @@ graph LR
   files, RTSP streams, and test patterns
 - 📹 **Camera Support**: Direct V4L2 camera input with
   hardware-accelerated ISP
-- 🎬 **Video File Support**: H.264 video file playback with
+- 🎬 **Video File Support**: H.264, H.265 video file playback with
   hardware decoding
 - 📡 **RTSP Streaming**: Connect to IP cameras and RTSP
   sources
@@ -157,7 +157,7 @@ graph LR
 - **Camera Input**: V4L2 compatible cameras with ISP
   support
 - **RTSP Streaming**: IP cameras and network video sources
-- **Video Files**: H.264, raw video
+- **Video Files**: .ts with H.264/H.265 codec support
 - **Test Patterns**: SMPTE, snow, black, and other test
   patterns
 - **Buffering**: Hardware-accelerated video decoding
@@ -212,7 +212,7 @@ The application supports multiple input source types:
 
 #### 🎬 Video Files
 
-- **Formats**: H.264, MP4
+- **Formats**: H.264, H.265 encoded .ts files
 - **Loop Playback**: Automatic restart when file ends
 - **Hardware Decoding**: Accelerated video decoding
 
@@ -1258,55 +1258,6 @@ Options:
   -d, --debug             To debug the pipeline
   -h, --help              Show help message
 ```
-
-
-## 📈 Platform Performance Comparison
-
-### 🚀 FRDM i.MX 95 Performance
-
-| Streams | sync=false (Default) |     | sync=true |     |
-|---------|---------------------|-----|-----------|-----|
-|         | **FPS** | **IPS** | **FPS** | **IPS** |
-| 1       | 60      | 60      | 30      | 30      |
-| 2       | 60      | 60      | 30      | 30      |
-| 3       | 60      | 60      | 30      | 30      |
-| 4       | 55      | 55      | 30      | 30      |
-| 5       | 48      | 48      | 30      | 30      |
-| 6       | 41      | 41      | 30      | 30      |
-| 7       | 36      | 36      | 30      | 30      |
-| 8       | 31      | 31      | 30      | 30      |
-
-**📊 FRDM i.MX 95 Analysis:**
-
-- ✅ **Excellent sync performance** (maintains 30 FPS)
-- ⚠️ **No Sync degradation**
-- 🚀 **Best platform** for synchronized multi-stream
-  applications
-- 💪 **Strong CPU** handles synchronization overhead well
-
-### 💻 FRDM i.MX 8M Plus Performance
-
-| Streams | sync=false (Default) |     | sync=true |     |
-|---------|---------------------|-----|-----------|-----|
-|         | **FPS** | **IPS** | **FPS** | **IPS** |
-| 1       | 60      | 60      | 30      | 30      |
-| 2       | 48      | 48      | 30      | 30      |
-| 3       | 36      | 36      | 30      | 30      |
-| 4       | 29      | 29      | 30      | 30      |
-| 5       | 25      | 25      | 27 ⚠️   | 27 ⚠️   |
-| 6       | 21      | 21      | 23 ⚠️   | 23 ⚠️   |
-| 7       | 18      | 18      | 21 ⚠️   | 21 ⚠️   |
-| 8       | 16      | 16      | 17 ⚠️   | 17 ⚠️   |
-
-**📊 i.MX 8M Plus Analysis:**
-
-- ✅ **Good sync performance** up to 4 streams (maintains
-  30 FPS)
-- ⚠️ **Sync degradation** starts at 5+ streams
-- 📉 **CPU limitations** more apparent with
-  synchronization enabled
-- 💡 **Recommendation**: Use `sync=false` for 5+ streams
-  on this platform
 
 ## 💡 Performance Recommendations
 

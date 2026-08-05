@@ -4,11 +4,11 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * File: multistream_yolov8.h
+ * File: multistream_yolo.h
  */
 
-#ifndef MULTISTREAM_YOLOV8_H
-#define MULTISTREAM_YOLOV8_H
+#ifndef MULTISTREAM_YOLO_H
+#define MULTISTREAM_YOLO_H
 
 // System headers
 #include <cairo.h>
@@ -305,4 +305,4 @@ class Demo {
  */
 void print_usage(const char* prog_name);
 
-#endif  // MULTISTREAM_YOLOV8_H
+#endif  // MULTISTREAM_YOLO_H
