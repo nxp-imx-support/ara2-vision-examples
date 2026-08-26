@@ -190,7 +190,7 @@ remove_shared_memory() {
     # Remove shared memory files created by the application
     shopt -s nullglob
     
-    for shm_pattern in /dev/shm/ara_stream_* /dev/shm/ara_inf_* /dev/shm/kinara_yolo_*; do
+    for shm_pattern in /dev/shm/ara_stream_* /dev/shm/ara_inf_* /dev/shm/kinara_yolov8_*; do
         if [ -e "$shm_pattern" ]; then
             rm -f "$shm_pattern" 2>/dev/null && ((shm_removed++)) || true
         fi

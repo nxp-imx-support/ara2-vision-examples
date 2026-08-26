@@ -31,7 +31,9 @@ public:
     GtkWidget *status_label;
     GtkWidget *launch_button;
     GtkWidget *stop_button;
-    GtkWidget *download_models_button;
+    GtkWidget *download_yolov8_button;
+    GtkWidget *download_yolox_button;
+    GtkWidget *download_yolo11_button;
     GtkWidget *models_status_label;
     GtkWidget *download_videos_button;
     GtkWidget *videos_status_label;
@@ -138,27 +140,62 @@ static int get_endpoint_count()
     return endpoint_count;
 }
 
+// Returns list of model names available on disk under /usr/share/cnn/detection/
+static std::vector<std::string> get_available_models()
+{
+    // All supported models in display order
+    static const char *ALL_MODELS[] = {
+        "yolov8n", "yolov8s", "yolov8m", "yolov8l", "yolov8x",
+        "yoloxs",  "yoloxt",  "yoloxm",  "yoloxl",  "yoloxx",
+        "yolo11n", "yolo11s", "yolo11m", "yolo11l", "yolo11x",
+        nullptr
+    };
+
+    std::vector<std::string> available;
+    for (int i = 0; ALL_MODELS[i] != nullptr; i++)
+    {
+        std::string path = std::string("/usr/share/cnn/detection/") + ALL_MODELS[i];
+        if (access(path.c_str(), F_OK) == 0)
+        {
+            available.push_back(ALL_MODELS[i]);
+        }
+    }
+    return available;
+}
+
 static bool check_models_downloaded()
 {
-    FILE *fp;
-    char buffer[256];
-    bool models_found = false;
+    return !get_available_models().empty();
+}
 
-    // Check if yolov8 models directory exists and has content
-    fp = popen("ls -lh /usr/share/cnn/detection/yolov8* 2>/dev/null", "r");
-    if (fp == nullptr)
+// Repopulate the model combo box with currently available models.
+// Shows "--- No models ---" when none are found; selects yolov8n when present.
+static void refresh_model_combo(AppWidgets *widgets)
+{
+    // Remove all existing entries
+    gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(widgets->model_combo));
+
+    std::vector<std::string> avail_models = get_available_models();
+    if (avail_models.empty())
     {
-        return false;
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo), "--- No models ---");
+        gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->model_combo), 0);
+        gtk_widget_set_sensitive(widgets->model_combo, FALSE);
+        return;
     }
 
-    // If we get any output, models exist
-    if (fgets(buffer, sizeof(buffer), fp) != nullptr)
+    gtk_widget_set_sensitive(widgets->model_combo, TRUE);
+    int default_index = 0;
+    for (int mi = 0; mi < static_cast<int>(avail_models.size()); mi++)
     {
-        models_found = true;
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo),
+                                       avail_models[mi].c_str());
+        if (avail_models[mi] == "yolov8n")
+        {
+            default_index = mi;
+        }
     }
-
-    pclose(fp);
-    return models_found;
+    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->model_combo), default_index);
 }
 
 static void update_launch_button_state(AppWidgets *widgets, int max_endpoints, bool models_available)
@@ -196,76 +233,121 @@ static void update_status_label(AppWidgets *widgets, int max_endpoints, bool mod
     }
     gtk_label_set_text(GTK_LABEL(widgets->status_label), status_text.c_str());
 }
+// Payload passed to the generic model download thread
+struct DownloadTask
+{
+    AppWidgets *widgets;
+    std::string command;  // full shell command to run
+    std::string label;    // short label for thread name
+};
+
 static gboolean check_download_models_complete(gpointer user_data)
 {
     auto *widgets = static_cast<AppWidgets *>(user_data);
 
-    // Check if models were actually downloaded
+    // Re-enable all three download buttons regardless of outcome
+    gtk_widget_set_sensitive(widgets->download_yolov8_button, TRUE);
+    gtk_widget_set_sensitive(widgets->download_yolox_button, TRUE);
+    gtk_widget_set_sensitive(widgets->download_yolo11_button, TRUE);
+
+    // Check if at least one model is now available
     bool models_available = check_models_downloaded();
 
     if (models_available)
     {
         gtk_label_set_markup(GTK_LABEL(widgets->models_status_label),
-                             "<span foreground='green'><b>✓ Downloaded</b></span>");
+                             "<span foreground='green'><b>✓ Models ok</b></span>");
 
-        // Update launch button state - models are now available
+        // Update launch button state
         int max_endpoints = get_endpoint_count();
         update_launch_button_state(widgets, max_endpoints, true);
 
         // Update the main status label
         update_status_label(widgets, max_endpoints, true);
-
-        // Keep download button disabled since models are now available
-        gtk_widget_set_sensitive(widgets->download_models_button, FALSE);
     }
     else
     {
         gtk_label_set_markup(GTK_LABEL(widgets->models_status_label),
                              "<span foreground='orange'><b>⚠ Check manually</b></span>");
-        gtk_widget_set_sensitive(widgets->download_models_button, TRUE);
     }
 
+    // Always refresh model combo to reflect current disk state
+    refresh_model_combo(widgets);
+
+    return G_SOURCE_REMOVE;
+}
+
+// Callback scheduled on the GTK main thread when download fails
+static gboolean on_download_failed(gpointer user_data)
+{
+    auto *task = static_cast<DownloadTask *>(user_data);
+    AppWidgets *w = task->widgets;
+
+    gtk_label_set_markup(GTK_LABEL(w->models_status_label),
+                         "<span foreground='red'><b>✗ Download failed</b></span>");
+    gtk_widget_set_sensitive(w->download_yolov8_button, TRUE);
+    gtk_widget_set_sensitive(w->download_yolox_button, TRUE);
+    gtk_widget_set_sensitive(w->download_yolo11_button, TRUE);
+
+    delete task;
     return G_SOURCE_REMOVE;
 }
 
 static gpointer download_models_thread(gpointer user_data)
 {
-    auto *widgets = static_cast<AppWidgets *>(user_data);
+    auto *task = static_cast<DownloadTask *>(user_data);
+    AppWidgets *widgets = task->widgets;
 
-    // Execute download command
-    int result = system("fetch_models --repo-id nxp/YOLOv8");
+    int result = system(task->command.c_str());
 
     if (result != 0)
     {
-        // Schedule UI update on main thread for failure
-        g_idle_add([](gpointer data) -> gboolean
-                   {
-            auto *w = static_cast<AppWidgets*>(data);
-            gtk_label_set_markup(GTK_LABEL(w->models_status_label), 
-                                "<span foreground='red'><b>✗ Failed</b></span>");
-            gtk_widget_set_sensitive(w->download_models_button, TRUE);
-            return G_SOURCE_REMOVE; }, widgets);
+        g_idle_add(on_download_failed, task);
     }
     else
     {
-        // Schedule completion check on main thread
+        delete task;
         g_idle_add(check_download_models_complete, widgets);
     }
 
     return nullptr;
 }
 
-static void on_download_models_clicked(GtkWidget *button, gpointer user_data)
+// Helper: disable all download buttons, update status, launch thread
+static void start_model_download(AppWidgets *widgets, const char *cmd, const char *thread_name)
 {
-    auto *widgets = static_cast<AppWidgets *>(user_data);
-    (void)button;
-
     gtk_label_set_markup(GTK_LABEL(widgets->models_status_label),
                          "<span foreground='blue'><b>⏳ Downloading...</b></span>");
-    gtk_widget_set_sensitive(widgets->download_models_button, FALSE);
+    gtk_widget_set_sensitive(widgets->download_yolov8_button, FALSE);
+    gtk_widget_set_sensitive(widgets->download_yolox_button, FALSE);
+    gtk_widget_set_sensitive(widgets->download_yolo11_button, FALSE);
 
-    // Start download in a separate thread to keep UI responsive
-    g_thread_new("download_models", download_models_thread, widgets);
+    auto *task = new DownloadTask{widgets, cmd, thread_name};
+    g_thread_new(thread_name, download_models_thread, task);
+}
+
+static void on_download_yolov8_clicked(GtkWidget *button, gpointer user_data)
+{
+    (void)button;
+    start_model_download(static_cast<AppWidgets *>(user_data),
+                         "ara2-fetch-models --repo-id nxp/Ultralytics-YOLOv8-detection-Ara240",
+                         "dl_yolov8");
+}
+
+static void on_download_yolox_clicked(GtkWidget *button, gpointer user_data)
+{
+    (void)button;
+    start_model_download(static_cast<AppWidgets *>(user_data),
+                         "ara2-fetch-models --repo-id nxp/YOLOX-Detection-Ara240",
+                         "dl_yolox");
+}
+
+static void on_download_yolo11_clicked(GtkWidget *button, gpointer user_data)
+{
+    (void)button;
+    start_model_download(static_cast<AppWidgets *>(user_data),
+                         "ara2-fetch-models --repo-id nxp/Ultralytics-YOLO11-Detection-Ara240",
+                         "dl_yolo11");
 }
 
 static void kill_multistream_app()
@@ -470,11 +552,6 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     GtkWidget *main_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_container_add(GTK_CONTAINER(window), main_box);
 
-    // Create title label
-    GtkWidget *label = gtk_label_new(nullptr);
-    gtk_label_set_markup(GTK_LABEL(label), "<b><big>Multistream YOLO Configuration</big></b>");
-    gtk_box_pack_start(GTK_BOX(main_box), label, FALSE, FALSE, 5);
-
     // Create horizontal box for Models and Videos sections side by side
     GtkWidget *management_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
     gtk_box_pack_start(GTK_BOX(main_box), management_hbox, FALSE, FALSE, 5);
@@ -500,14 +577,27 @@ static void on_activate(GtkApplication *app, gpointer user_data)
                              "<span foreground='red'><b>✗ Models not found</b></span>");
     }
     gtk_label_set_line_wrap(GTK_LABEL(widgets->models_status_label), TRUE);
-    gtk_label_set_max_width_chars(GTK_LABEL(widgets->models_status_label), 15);
+    gtk_label_set_max_width_chars(GTK_LABEL(widgets->models_status_label), 20);
     gtk_box_pack_start(GTK_BOX(models_box), widgets->models_status_label, FALSE, FALSE, 3);
 
-    // Download models button - enable only if models are not available
-    widgets->download_models_button = gtk_button_new_with_label("Download");
-    g_signal_connect(widgets->download_models_button, "clicked", G_CALLBACK(on_download_models_clicked), widgets.get());
-    gtk_widget_set_sensitive(widgets->download_models_button, !models_available);
-    gtk_box_pack_start(GTK_BOX(models_box), widgets->download_models_button, FALSE, FALSE, 0);
+    // Three download buttons side by side to keep the Models frame compact
+    GtkWidget *dl_btn_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    gtk_box_pack_start(GTK_BOX(models_box), dl_btn_box, FALSE, FALSE, 0);
+
+    widgets->download_yolov8_button = gtk_button_new_with_label("YOLOv8");
+    g_signal_connect(widgets->download_yolov8_button, "clicked",
+                     G_CALLBACK(on_download_yolov8_clicked), widgets.get());
+    gtk_box_pack_start(GTK_BOX(dl_btn_box), widgets->download_yolov8_button, TRUE, TRUE, 0);
+
+    widgets->download_yolox_button = gtk_button_new_with_label("YOLOX");
+    g_signal_connect(widgets->download_yolox_button, "clicked",
+                     G_CALLBACK(on_download_yolox_clicked), widgets.get());
+    gtk_box_pack_start(GTK_BOX(dl_btn_box), widgets->download_yolox_button, TRUE, TRUE, 0);
+
+    widgets->download_yolo11_button = gtk_button_new_with_label("YOLO11");
+    g_signal_connect(widgets->download_yolo11_button, "clicked",
+                     G_CALLBACK(on_download_yolo11_clicked), widgets.get());
+    gtk_box_pack_start(GTK_BOX(dl_btn_box), widgets->download_yolo11_button, TRUE, TRUE, 0);
 
     // Add Videos section (right side)
     GtkWidget *videos_frame = gtk_frame_new("Videos");
@@ -540,6 +630,7 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(videos_box), widgets->download_videos_button, FALSE, FALSE, 0);
 
     // Create grid for parameters
+    GtkWidget *label = nullptr;
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
@@ -611,12 +702,6 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
 
     widgets->model_combo = gtk_combo_box_text_new();
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo), "yolov8n");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo), "yolov8s");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo), "yolov8m");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo), "yolov8l");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo), "yolov8x");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->model_combo), 0);
     gtk_grid_attach(GTK_GRID(grid), widgets->model_combo, 1, row, 1, 1);
     row++;
 
@@ -743,6 +828,9 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     g_object_set_data_full(G_OBJECT(window), "widgets", widgets_ptr,
                            [](gpointer data)
                            { delete static_cast<AppWidgets *>(data); });
+
+    // Populate model list based on what is currently installed on disk
+    refresh_model_combo(widgets_ptr);
 
     // Show all widgets
     gtk_widget_show_all(window);

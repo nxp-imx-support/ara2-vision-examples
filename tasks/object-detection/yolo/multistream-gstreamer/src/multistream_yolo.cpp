@@ -64,12 +64,15 @@ bool validate_model_exists(const std::string& model_path) {
               << "  " << model_path << "\n\n"
               << "  To download the required models:\n\n"
               << "1. Download all YOLOv8 models:\n"
-              << "   fetch_models --repo-id nxp/YOLOv8\n\n"
+              << "   fetch_models --repo-id nxp/Ultralytics-YOLOv8-detection-Ara240\n\n"
               << "2. Download all YOLOX models:\n"
-              << "   fetch_models --repo-id nxp/YOLOX\n\n"
-              << "3. Verify installation:\n"
+              << "   fetch_models --repo-id nxp/YOLOX-Detection-Ara240\n\n"
+              << "3. Download all YOLO11 models:\n"
+              << "   fetch_models --repo-id nxp/Ultralytics-YOLO11-Detection-Ara240\n\n"
+              << "4. Verify installation:\n"
               << "   ls -lh /usr/share/cnn/detection/yolov8*/\n"
-              << "   ls -lh /usr/share/cnn/detection/yolox*/\n\n"
+              << "   ls -lh /usr/share/cnn/detection/yolox*/\n"
+              << "   ls -lh /usr/share/cnn/detection/yolo11*/\n\n"
               << "  Available YOLOv8 model variants:\n"
               << "   - yolov8n (nano)        - Fastest, lowest accuracy\n"
               << "   - yolov8s (small)       - Balanced speed and accuracy\n"
@@ -77,10 +80,17 @@ bool validate_model_exists(const std::string& model_path) {
               << "   - yolov8l (large)       - High accuracy, slower\n"
               << "   - yolov8x (extra-large) - Highest accuracy, slowest\n\n"
               << "  Available YOLOX model variants:\n"
+              << "   - yoloxt (tiny)         - Fastest speed, lowest accuracy\n"
               << "   - yoloxs (small)        - Balanced speed and accuracy\n"
               << "   - yoloxm (medium)       - Good accuracy, moderate speed\n"
               << "   - yoloxl (large)        - High accuracy, slower\n"
-              << "   - yoloxx (extra-large)  - Highest accuracy, slowest\n\n"
+              << "   - yoloxx (extra-large)  - Highest accuracy, slowest\n"
+              << "  Available YOLO11 model variants:\n"
+              << "   - yolo11n (nano)        - Fastest, lowest accuracy\n"
+              << "   - yolo11s (small)       - Balanced speed and accuracy\n"
+              << "   - yolo11m (medium)      - Good accuracy, moderate speed\n"
+              << "   - yolo11l (large)       - High accuracy, slower\n"
+              << "   - yolo11x (extra-large) - Highest accuracy, slowest\n"
               << "========================================\n"
               << std::endl;
     return false;
@@ -167,6 +177,7 @@ Detection::Detection(int stream_id)
       no_bbox_(false),
       no_osd_stats_(false),
       only_bbox_(false),
+      headless_(false),
       console_interval_(2) {
   const auto now = std::chrono::steady_clock::now();
   start_time_ = now;
@@ -210,6 +221,10 @@ void Detection::set_only_bbox(bool only_bbox) {
   only_bbox_ = only_bbox;
 }
 
+void Detection::set_headless(bool headless) {
+  headless_ = headless;
+}
+
 void Detection::set_stats_callback(std::function<void()> callback) {
   stats_callback_ = callback;
 }
@@ -249,6 +264,11 @@ void Detection::start(GstElement* pipeline) {
 
   g_signal_connect(dv_post_sink_, "new-sample",
                    G_CALLBACK(new_detection_callback), this);
+
+  // Headless: no display branch to wire
+  if (headless_) {
+    return;
+  }
 
   // Get cairo overlay element
   const std::string draw_name = "draw_detections_" + std::to_string(stream_id_);
@@ -379,6 +399,12 @@ GstFlowReturn Detection::new_detection(GstElement* sink) {
 
   calculate_ips();
 
+  // Headless: draw callback never fires, so update stats here
+  if (headless_) {
+    calculate_fps();
+    print_stats_to_console();
+  }
+
   GstBuffer* buffer = gst_sample_get_buffer(sample);
   if (!buffer) {
     gst_sample_unref(sample);
@@ -428,7 +454,7 @@ GstFlowReturn Detection::new_detection(GstElement* sink) {
     box.score = det.confidence;
     box.class_id = det.class_id;
     box.track_id = 1;
-
+    
     // Validate box coordinates
     if (box.x1 >= 0.0f && box.y1 >= 0.0f && box.x2 > box.x1 &&
         box.y2 > box.y1) {
@@ -771,6 +797,7 @@ ModelResolution Demo::get_model_resolution(const std::string& model_path) {
       no_bbox_(false),
       no_osd_stats_(false),
       only_bbox_(false),
+      headless_(false),
       debug_pipeline_(false),
       console_interval_(console_interval),
       stream_config_(std::make_unique<StreamConfigManager>()) {
@@ -862,6 +889,13 @@ void Demo::set_only_bbox(bool only_bbox) {
   }
 }
 
+void Demo::set_headless(bool headless) {
+  headless_ = headless;
+  for (auto& detection : detections_) {
+    detection->set_headless(headless);
+  }
+}
+
 void Demo::set_debug(bool enable) {
     debug_pipeline_ = enable;
 }
@@ -946,6 +980,7 @@ bool Demo::start() {
     detections_[i]->set_no_bbox(no_bbox_);
     detections_[i]->set_no_osd_stats(no_osd_stats_);
     detections_[i]->set_only_bbox(only_bbox_);
+    detections_[i]->set_headless(headless_);
     detections_[i]->set_console_interval(console_interval_);
     detections_[i]->start(pipeline_);
   }
@@ -1086,31 +1121,38 @@ std::string Demo::build_compositor(int number_of_streams) {
                           "max-buffers=1 ";
 
     //--------------------------------------------------------------------------
-    // Display branch
+    // Display branch (skip if headless)
     //--------------------------------------------------------------------------
-    detection_pipeline += "t" + std::to_string(num) + ". ";
-    detection_pipeline +=
-        "! queue name=q_disp" + std::to_string(num) + " max-size-buffers=2 max-size-bytes=0 max-size-time=0 ";
-    detection_pipeline +=
-        "! cairooverlay name=draw_detections_" + std::to_string(num) + " ";
-    detection_pipeline +=
-        "! queue name=q_af_c" + std::to_string(num) + " max-size-buffers=2 max-size-bytes=0 max-size-time=0 ";
+    if (!headless_) {
+      detection_pipeline += "t" + std::to_string(num) + ". ";
+      detection_pipeline +=
+          "! queue name=q_disp" + std::to_string(num) + " max-size-buffers=2 max-size-bytes=0 max-size-time=0 ";
+      detection_pipeline +=
+          "! cairooverlay name=draw_detections_" + std::to_string(num) + " ";
+      detection_pipeline +=
+          "! queue name=q_af_c" + std::to_string(num) + " max-size-buffers=2 max-size-bytes=0 max-size-time=0 ";
 
-    detection_pipeline += "! imxvideoconvert_g2d ! video/x-raw,format=RGBA ";
-    detection_pipeline += "! comp.sink_" + std::to_string(num) + " ";
+      detection_pipeline += "! imxvideoconvert_g2d ! video/x-raw,format=RGBA ";
+      detection_pipeline += "! comp.sink_" + std::to_string(num) + " ";
 
-    //--------------------------------------------------------------------------
-    // Compositor configuration with keep-ratio
-    //--------------------------------------------------------------------------
-    compositor_pipeline +=
-        "sink_" + std::to_string(num) + "::xpos=" + std::to_string(xpos) + " ";
-    compositor_pipeline +=
-        "sink_" + std::to_string(num) + "::ypos=" + std::to_string(ypos) + " ";
-    compositor_pipeline += "sink_" + std::to_string(num) +
-                           "::width=" + std::to_string(stream_width) + " ";
-    compositor_pipeline += "sink_" + std::to_string(num) +
-                           "::height=" + std::to_string(stream_height) + " ";
-    compositor_pipeline += "sink_" + std::to_string(num) + "::keep-ratio=true ";
+      //------------------------------------------------------------------------
+      // Compositor configuration with keep-ratio
+      //------------------------------------------------------------------------
+      compositor_pipeline +=
+          "sink_" + std::to_string(num) + "::xpos=" + std::to_string(xpos) + " ";
+      compositor_pipeline +=
+          "sink_" + std::to_string(num) + "::ypos=" + std::to_string(ypos) + " ";
+      compositor_pipeline += "sink_" + std::to_string(num) +
+                             "::width=" + std::to_string(stream_width) + " ";
+      compositor_pipeline += "sink_" + std::to_string(num) +
+                             "::height=" + std::to_string(stream_height) + " ";
+      compositor_pipeline += "sink_" + std::to_string(num) + "::keep-ratio=true ";
+    }
+  }
+
+  // Headless: inference branches only
+  if (headless_) {
+    return detection_pipeline;
   }
 
   // Build waylandsink with configurable window size
@@ -1382,7 +1424,8 @@ void print_usage(const char* prog_name) {
                 "(default: false)\n"
             << "  -m, --model <model-name>    Select model. Currently supported models:\n"
             << "                              YOLOv8: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x\n"
-            << "                              YOLOx: yoloxs, yoloxs_512, yoloxm, yoloxl, yoloxx\n"
+            << "                              YOLOx : yoloxt, yoloxs, yoloxs_512, yoloxm, yoloxl, yoloxx\n"
+            << "                              YOLO11: yolo11n, yolo11s, yolo11m, yolo11l, yolo11x\n"
             << "  -t                          Console stats will be refreshed each t seconds, To disable set t to 0\n"
             << "  -p, --perf-stats            Enable detailed performance stats every 5 seconds\n"
             << "\nWindow Configuration:\n"
@@ -1400,6 +1443,7 @@ void print_usage(const char* prog_name) {
             << "  --no-bbox                   Draw no bounding boxes and labels\n"
             << "  --no-osd-stats              No on screen stats display\n"
             << "  --only-bbox                 Draw only bounding boxes, no labels\n"
+            << "  --headless                  Run without a display; track metrics only\n"
             << "  -d, --debug                 To debug the pipeline \n"
             << "  -h, --help                  Show this help message\n"
             << "\nDefault Behavior:\n"
@@ -1421,6 +1465,7 @@ int main(int argc, char* argv[]) {
   int console_interval = 2;
   bool only_bbox = false;
   bool debug_pipeline = false;
+  bool headless = false;
 
   int window_width = 1920;
   int window_height = 1080;
@@ -1495,6 +1540,8 @@ int main(int argc, char* argv[]) {
       no_osd_stats = true;
     } else if (arg == "--only-bbox") {
       only_bbox = true;
+    } else if (arg == "--headless") {
+      headless = true;
     } else if (arg == "-s" || arg == "--stream") {
       if (i + 1 < argc) {
         streams = std::atoi(argv[++i]);
@@ -1547,6 +1594,8 @@ int main(int argc, char* argv[]) {
           model = "/usr/share/cnn/detection/yolov8l/model.dvm";
         else if (val == "yolov8x")
           model = "/usr/share/cnn/detection/yolov8x/model.dvm";
+        else if (val == "yoloxt")
+          model = "/usr/share/cnn/detection/yoloxt/model.dvm";
         else if (val == "yoloxs")
           model = "/usr/share/cnn/detection/yoloxs/model.dvm";
         else if (val == "yoloxs_512")
@@ -1557,6 +1606,16 @@ int main(int argc, char* argv[]) {
           model = "/usr/share/cnn/detection/yoloxl/model.dvm";
         else if (val == "yoloxx")
           model = "/usr/share/cnn/detection/yoloxx/model.dvm";
+        else if (val == "yolo11n")
+          model = "/usr/share/cnn/detection/yolo11n/model.dvm";
+        else if (val == "yolo11s")
+          model = "/usr/share/cnn/detection/yolo11s/model.dvm";
+        else if (val == "yolo11m")
+          model = "/usr/share/cnn/detection/yolo11m/model.dvm";
+        else if (val == "yolo11l")
+          model = "/usr/share/cnn/detection/yolo11l/model.dvm";
+        else if (val == "yolo11x")
+          model = "/usr/share/cnn/detection/yolo11x/model.dvm";    
         else {
           std::cerr << "Error: model not found\n";
           return 1;
@@ -1675,17 +1734,19 @@ int main(int argc, char* argv[]) {
             demo.set_no_bbox(no_bbox);
             demo.set_no_osd_stats(no_osd_stats);
             demo.set_only_bbox(only_bbox);
+            demo.set_headless(headless);
             demo.set_window_size(window_width, window_height);
             demo.set_debug(debug_pipeline);
             std::cout << "\n========================================\n"
-                      << "  Ara YOLOv8 Multi-Stream Demo\n"
+                      << "  Ara YOLO Multi-Stream Demo\n"
                       << "========================================\n"
                       << "Streams:    " << streams << "\n"
                       << "Endpoint:   " << endpoint << "\n"
                       << "Group:      " << group << "\n"
                       << "Sync:       " << (sync ? "true" : "false") << "\n"
                       << "Model Used: " << model << "\n"
-                      << "Window:     " << window_width << "x" << window_height << "\n";
+                      << "Window:     " << window_width << "x" << window_height << "\n"
+                      << "Headless:   " << (headless ? "true (no display)" : "false") << "\n";
 
             if (enable_perf_stats) {
               std::cout << "Perf Stats: ENABLED (stream 0 only)\n";

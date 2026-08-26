@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2026 NXP
+# Copyright 2025-2026 NXP
 #
 # NXP Proprietary. This software is owned or controlled by NXP and may only be
 # used strictly in accordance with the applicable license terms. By expressly

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Multi-stream GStreamer Example for YOLOv8
+# Multi-stream GStreamer Example for YOLOv8 / YOLOX / YOLO11
 
 [![License](https://img.shields.io/badge/License-BSD_3_Clause-red)](./LICENSE.txt)
 [![Platforms](https://img.shields.io/badge/Platforms-FRDM_i.MX_8M_Plus_|_FRDM_i.MX_95|_FRDM_i.MX_95_PRO-blue)](https://www.nxp.com/products/processors-and-microcontrollers/arm-processors/i-mx-applications-processors:IMX_HOME)
@@ -14,10 +14,10 @@
 ## 📖 Example Description
 
 This example demonstrates multi-stream object detection using
-YOLOv8 models accelerated by the NXP Ara240 DNPU. It leverages
-GStreamer to process up to **eight simultaneous video streams**
-from **multiple input sources** including cameras 📹, video
-files 🎬, RTSP streams 📡.
+YOLOv8, YOLOX, and YOLO11 models accelerated by the NXP Ara240 
+DNPU. It leverages GStreamer to process up to 
+**eight simultaneous video streams** from **multiple input sources** 
+including cameras 📹, video files 🎬, RTSP streams 📡.
 
 <div align="center">
 <img src="../../../../data/yoloExample.webp" width="600">
@@ -105,10 +105,10 @@ graph LR
 - 📄 **JSON Configuration**: Load complex multi-stream
   setups from configuration files
 - ⚡ **Hardware Acceleration**: Utilizes NXP Ara240 DNPU
-  for efficient YOLOv8 inference
-- 🎯 **Multiple Model Support**: Choose from 5 YOLOv8
-  variants (nano, small, medium, large, extra-large) to
-  balance speed and accuracy
+  for efficient YOLOv8, YOLOX, and YOLO11 inference
+- 🎯 **Multiple Model Support**: Choose from YOLOv8,
+  YOLOX, and YOLO11 variants (nano, small, medium, large,
+  extra-large) to balance speed and accuracy
 - 🎬 **GStreamer Integration**: Built on robust GStreamer
   framework for video processing and pipeline management
 - 👁️ **Visual Output**: Displays detected objects with
@@ -150,7 +150,8 @@ graph LR
 - **Object Classes**: 80 COCO dataset classes
 - **Detection Capabilities**: Real-time object detection
 - **Model Variants**: YOLOv8n, YOLOv8s, YOLOv8m, YOLOv8l,
-  YOLOv8x
+  YOLOv8x, YOLOXt, YOLOXs, YOLOXm, YOLOXl, YOLOXx, YOLO11n, 
+  YOLO11s, YOLO11m, YOLO11l, YOLO11x
 
 #### 🎬 Video Processing
 
@@ -220,8 +221,8 @@ The application supports multiple input source types:
 
 ### 🔄 Automatic Download
 
-The YOLOv8 models are automatically downloaded from
-Hugging Face Hub during package installation via the
+The YOLOv8, YOLOX, and YOLO11 models are automatically downloaded
+from Hugging Face Hub during package installation via the
 `ara2-vision-examples` Debian package postinstall script.
 
 The installation process will automatically fetch the
@@ -232,9 +233,19 @@ following models:
 - YOLOv8m (medium)
 - YOLOv8l (large)
 - YOLOv8x (extra-large)
+- YOLOXt (tiny)
+- YOLOXs (small)
+- YOLOXm (medium)
+- YOLOXl (large)
+- YOLOXx (extra-large)
+- YOLO11n (nano)
+- YOLO11s (small)
+- YOLO11m (medium)
+- YOLO11l (large)
+- YOLO11x (extra-large)
 
 Models are downloaded to:
-`/usr/share/cnn/detection/yolov8*/`
+`/usr/share/cnn/detection/yolo*`
 
 > **NOTE:** If necessary, configure a DNS before
 > installing the package to ensure successful model
@@ -260,7 +271,21 @@ fetch_models --list
 
 ```sh
 # Download all YOLOv8 variants from Hugging Face
-fetch_models --repo-id nxp/YOLOv8
+fetch_models --repo-id nxp/Ultralytics-YOLOv8-detection-Ara240
+```
+
+#### ⬇️ Download All YOLOX Models
+
+```sh
+# Download all YOLOX variants from Hugging Face
+fetch_models --repo-id nxp/YOLOX-Detection-Ara240
+```
+
+#### ⬇️ Download All YOLO11 Models
+
+```sh
+# Download all YOLO11 variants from Hugging Face
+fetch_models --repo-id nxp/Ultralytics-YOLO11-Detection-Ara240
 ```
 
 ### ✅ Verify Model Installation
@@ -269,8 +294,10 @@ To verify that the models have been downloaded
 successfully:
 
 ```sh
-# List all downloaded YOLOv8 models
+# List all downloaded models
 ls -lh /usr/share/cnn/detection/yolov8*
+ls -lh /usr/share/cnn/detection/yolox*
+ls -lh /usr/share/cnn/detection/yolo11*
 ```
 
 ### 🔍 Troubleshooting Model Downloads
@@ -304,8 +331,8 @@ If you encounter issues downloading models:
 
 > **💡 Tip:** You only need to download the models you
 > plan to use. For most applications, starting with
-> YOLOv8n (nano) is recommended due to its balance of
-> speed and accuracy.
+> YOLOv8n or YOLO11n (nano) is recommended due to their
+> balance of speed and accuracy.
 
 ## 📹 Sample Videos for ARA2 Vision Examples
 
@@ -909,20 +936,27 @@ multistream_yolo -f streams.json -s 2
 
 ### 🤖 Model Selection
 
-The application supports different YOLOv8 and YOLOX model
-variants via the `-m` or `--model` flag. Available models
+The application supports different YOLOv8, YOLOX, and YOLO11
+model variants via the `-m` or `--model` flag. Available models
 include:
 
-| Model | Size | 
-|-------|------|
-| **yolov8n** | Nano |
-| **yolov8s** | Small |
-| **yolov8m** | Medium |
-| **yolov8l** | Large |
-| **yolov8x** | XL |
-| **yoloxs** | Small |
-| **yoloxm** | Medium |
-| **yoloxl** | Large |
+| Model | Family | Size |
+|-------|--------|------|
+| **yolov8n** | YOLOv8 | Nano |
+| **yolov8s** | YOLOv8 | Small |
+| **yolov8m** | YOLOv8 | Medium |
+| **yolov8l** | YOLOv8 | Large |
+| **yolov8x** | YOLOv8 | XL |
+| **yoloxt** | YOLOX | Tiny |
+| **yoloxs** | YOLOX | Small |
+| **yoloxm** | YOLOX | Medium |
+| **yoloxl** | YOLOX | Large |
+| **yoloxx** | YOLOX | XL |
+| **yolo11n** | YOLO11 | Nano |
+| **yolo11s** | YOLO11 | Small |
+| **yolo11m** | YOLO11 | Medium |
+| **yolo11l** | YOLO11 | Large |
+| **yolo11x** | YOLO11 | XL |
 
 #### ▶️ Run with Different Models
 
@@ -950,15 +984,15 @@ multistream_yolo -s 1 \
   -c /dev/video0 \
   -m yolov8x
 
-# YOLOX Small (640×640) for balanced performance
+# YOLOX Tiny (640×640) for fastest inference, lowest accuracy
 multistream_yolo -s 4 \
   -c /dev/video0 \
-  --model yoloxs
+  --model yoloxt
 
-# YOLOX Small (512×512) for faster inference
+# YOLOX Small (640×640) for balanced performance
 multistream_yolo -s 8 \
   -c /dev/video0 \
-  -m yoloxs_512
+  -m yoloxs
 
 # YOLOX Medium (640×640) for better accuracy
 multistream_yolo -s 2 \
@@ -969,15 +1003,29 @@ multistream_yolo -s 2 \
 multistream_yolo -s 1 \
   -r rtsp://camera.local/stream \
   --model yoloxl
+
+# YOLO11 Nano for maximum throughput
+multistream_yolo -s 8 \
+  -c /dev/video0 \
+  --model yolo11n
+
+# YOLO11 Small for balanced performance
+multistream_yolo -s 4 \
+  -c /dev/video0 \
+  --model yolo11s
+
+# YOLO11 Large for high accuracy
+multistream_yolo -s 1 \
+  -c /dev/video0 \
+  --model yolo11l
 ```
 
 > **⚠️ Performance Note:** Larger models (yolov8l,
-> yolov8x, yoloxl) and higher resolution inputs (640×640)
-> provide better accuracy but require more computational
-> resources, which may reduce the maximum number of
-> streams you can run simultaneously while maintaining
-> real-time performance. Use yoloxs_512 for maximum
-> throughput with YOLOX models.
+> yolov8x, yoloxl, yolo11l, yolo11x) and higher resolution
+> inputs (640×640) provide better accuracy but require more
+> computational resources, which may reduce the maximum number
+> of streams you can run simultaneously while maintaining
+> real-time performance.
 
 ### 🎛️ Display and Statistics Control
 
@@ -1017,6 +1065,26 @@ multistream_yolo -s 1 \
   -c /dev/video0 \
   --no-bbox \
   --no-osd-stats
+
+# Headless: no display, metrics only (lowest CPU)
+multistream_yolo -s 1 -c /dev/video0 --headless
+```
+
+#### 🖥️ Headless Mode
+
+The `--headless` flag runs inference without a display. The
+display branch (overlay, G2D conversion, compositor and
+waylandsink) is dropped from the pipeline and detection
+results are discarded, so only FPS/IPS metrics are tracked.
+Use it on systems without a display or to benchmark
+inference throughput with minimal CPU overhead.
+
+```sh
+# Benchmark 4 streams headless, stats every 2s
+multistream_yolo -s 4 --headless -t 2
+
+# Headless with detailed perf stats
+multistream_yolo -s 4 --headless -p
 ```
 
 ### 🔄 Synchronization Control
@@ -1254,6 +1322,8 @@ Options:
   --no-bbox               Disable bounding boxes
   --no-osd-stats          Disable OSD statistics
   --only-bbox             Show only boxes, no labels
+  --headless              Run without a display,
+                          track metrics only
 
   -d, --debug             To debug the pipeline
   -h, --help              Show help message

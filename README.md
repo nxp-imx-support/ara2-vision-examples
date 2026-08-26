@@ -12,13 +12,67 @@
 
 </div>
 
+## Overview
+
+See how **Ara240** transforms edge vision AI with real-time object detection running 
+on NXP i.MX platforms. This solution processes one or multiple video streams, generating 
+visual outputs with bounding boxes around detected objects, along with classification 
+labels and confidence scores.
+Designed to showcase the performance, scalability, and responsiveness of the **Ara240** 
+architecture, this application highlights how advanced AI workloads can be executed locally 
+at the edge. By leveraging the **Ara240** compute capabilities for on-device inference, the 
+system reduces latency, minimizes cloud dependency, and enables faster decision-making for 
+next-generation smart cameras, industrial automation systems, and intelligent edge devices.
+The application supports both single-stream and multi-stream operation, demonstrating how 
+**Ara240** can efficiently scale from basic vision use cases to complex deployments requiring 
+simultaneous analysis of multiple video feeds.
+
+<div align="center">
+<br/>
+  <figure>
+    <img src="./data/preview-1.webp" alt="Preview 1 - Single stream demonstration">
+  </figure>
+</div>
+
+<div align="center">
+  <em> Preview 1. Demonstration of Ara240 Vision Examples working on a single video stream. </em>
+  <br></br>
+</div> 
+
+<div align="center">
+<br></br>
+  <figure>
+    <img src="./data/preview-2.webp" alt="Preview 2 - Four streams demonstration">
+  </figure>  
+</div>
+
+<div align="center">
+  <em>Preview 2. Demonstration of Ara240 Vision Examples working on four video streams.</em>
+  <br></br>
+</div> 
+
+<div align="center">
+<br></br>
+  <figure>
+    <img src="./data/preview-3.webp" alt="Preview 3 - Eight streams demonstration">
+  </figure>  
+</div>
+
+<div align="center">
+  <em>Preview 3. Demonstration of Ara240 Vision Examples working on eight video streams.</em>
+  <br></br>
+</div> 
+
 ## 📖 Project Description
 
-This repository contains comprehensive vision examples for i.MX
-processors with Ara240 DNPU acceleration. It demonstrates
-real-time video processing with AI/ML inference capabilities
-including object detection, classification, pose estimation, and
-semantic segmentation.
+This repository contains comprehensive vision examples for i.MX Application
+Processors, using the **Ara240** *Discrete Neural Processing Unit* (DNPU) accelerator.
+It demonstrates real-time video processing with AI/ML inference capabilities at the edge.
+Including object detection, object classification, pose estimation, and semantic segmentation.
+
+## Software Architecture
+
+![ara2-vision-examples-architecture](./data/block-diagram.png)
 
 ## 💻 Supported Platforms
 
@@ -34,9 +88,8 @@ semantic segmentation.
 
 - Ara240 Runtime SDK installed on target
 - [Embedded Linux for i.MX](https://www.nxp.com/design/design-center/software/embedded-software/i-mx-software/embedded-linux-for-i-mx-applications-processors:IMXLINUX)
-  (>= LF6.18.20_2.0.0)
+  (>= LF6.18.37_2.1.0)
 - ara2-vision-example.deb (optional, build instructions available in this repository)
-
 
 ## 🔨 Build `ara2-vision-examples.deb` package
 
@@ -125,7 +178,7 @@ dpkg -L ara2-vision-examples
 
 | Snapshot | Name | Platforms | Implementation | Model |
 | :---: | --- | --- | :---: | :---: |
-| <a href="./tasks/object-detection/yolo/multistream-gstreamer/README.md"><img src="./data/yoloExample.webp" width="150" alt="multistream_yolo"></a> | [multistream_yolo](./tasks/object-detection/yolo/multistream-gstreamer/README.md) | FRDM i.MX 8M Plus<br>FRDM i.MX 95<br>FRDM i.MX 95 PRO | C++ | YOLOv8n <br>YOLOv8s <br>YOLOv8m <br>YOLOv8l <br>YOLOv8x <br>YOLOxs <br>YOLOxm <br>YOLOxl |
+| <a href="./tasks/object-detection/yolo/multistream-gstreamer/README.md"><img src="./data/yoloExample.webp" width="150" alt="multistream_yolo"></a> | [multistream_yolo](./tasks/object-detection/yolo/multistream-gstreamer/README.md) | FRDM i.MX 8M Plus<br>FRDM i.MX 95<br>FRDM i.MX 95 PRO | C++ | YOLOv8n <br>YOLOv8s <br>YOLOv8m <br>YOLOv8l <br>YOLOv8x <br>YOLOxt <br>YOLOxs <br>YOLOxm <br>YOLOxl <br>YOLOxx <br>YOLO11n <br>YOLO11s <br>YOLO11m <br>YOLO11l <br>YOLO11x |
 
 ## 🔧 Troubleshooting
 
@@ -139,8 +192,8 @@ dpkg -L ara2-vision-examples
 
 ### 📦 Package removal issues
 
-- Check for running processes: `ps aux | grep yolov8n`
-- Force stop if needed: `pkill -9 mulitistream_yolov8n`
+- Check for running processes: `ps aux | grep yolo`
+- Force stop if needed: `pkill -9 mulitistream_yolo`
 - Then retry removal: `dpkg -r ara2-vision-examples`
 
 ## 📄 Licensing

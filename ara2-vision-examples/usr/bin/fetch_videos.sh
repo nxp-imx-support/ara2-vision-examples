@@ -207,7 +207,9 @@ for URL in "${URLS[@]}"; do
             filesrc location="${INPUT}" typefind=true ! \
             decodebin3 ! \
             imxvideoconvert_g2d ! \
-            video/x-raw ! \
+            video/x-raw,width=640,height=360 ! \
+            videorate ! \
+            video/x-raw,framerate=30/1 ! \
             v4l2h264enc ! \
             h264parse ! \
             mpegtsmux ! \

@@ -1,6 +1,6 @@
 #!/bin/bash
 # postinst script for ara2-vision-examples
-# Copyright 2025 NXP
+# Copyright 2025-2026 NXP
 # SPDX-License-Identifier: BSD-3-Clause
 set -e
 
@@ -161,7 +161,7 @@ FETCH_MODELS_SCRIPT="fetch_models"
 
 # Define models to check (add more as needed)
 readonly MODELS=(
-  "nxp/YOLOv8"
+  "nxp/Ultralytics-YOLOv8-detection-Ara240"
 )
 
 # Required library and plugin paths

@@ -134,6 +134,7 @@ class Detection {
   void set_no_bbox(bool no_bbox);
   void set_no_osd_stats(bool no_osd_stats);
   void set_only_bbox(bool only_bbox);
+  void set_headless(bool headless);
   void set_console_interval(int console_interval);
   void print_stats_to_console(void);
   void set_stats_callback(std::function < void() > callback);
@@ -153,6 +154,7 @@ class Detection {
   bool no_bbox_;
   bool no_osd_stats_;
   bool only_bbox_;
+  bool headless_;
   int console_interval_;
 
   std::chrono::steady_clock::time_point last_console_print_;
@@ -240,6 +242,7 @@ class Demo {
   void set_no_bbox(bool no_bbox);
   void set_no_osd_stats(bool no_osd_stats);
   void set_only_bbox(bool only_bbox);
+  void set_headless(bool headless);
   void print_total_stats(void);
   void add_camera(const std::string& device);
   void set_camera_params(int width, int height, int fps);
@@ -273,6 +276,7 @@ class Demo {
   bool no_bbox_;
   bool no_osd_stats_;
   bool only_bbox_;
+  bool headless_;
   int console_interval_;
   std::unique_ptr<StreamConfigManager> stream_config_;
   int model_width_;
