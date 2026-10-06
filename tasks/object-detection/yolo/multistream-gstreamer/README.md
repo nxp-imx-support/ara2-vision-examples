@@ -219,33 +219,7 @@ The application supports multiple input source types:
 
 ## ⬇️ Download the Models
 
-### 🔄 Automatic Download
-
-The YOLOv8, YOLOX, and YOLO11 models are automatically downloaded
-from Hugging Face Hub during package installation via the
-`ara2-vision-examples` Debian package postinstall script.
-
-The installation process will automatically fetch the
-following models:
-
-- YOLOv8n (nano)
-- YOLOv8s (small)
-- YOLOv8m (medium)
-- YOLOv8l (large)
-- YOLOv8x (extra-large)
-- YOLOXt (tiny)
-- YOLOXs (small)
-- YOLOXm (medium)
-- YOLOXl (large)
-- YOLOXx (extra-large)
-- YOLO11n (nano)
-- YOLO11s (small)
-- YOLO11m (medium)
-- YOLO11l (large)
-- YOLO11x (extra-large)
-
-Models are downloaded to:
-`/usr/share/cnn/detection/yolo*`
+You can use the `ara2-fetch-models` tool to download any of the available models:
 
 > **NOTE:** If necessary, configure a DNS before
 > installing the package to ensure successful model
@@ -255,37 +229,31 @@ Models are downloaded to:
 echo nameserver 8.8.8.8 > /etc/resolv.conf
 ```
 
-### 🖐️ Manual Download (Alternative)
-
-If the models were not downloaded during installation or
-you need to download them manually, you can use the
-`fetch_models` tool:
-
 #### 📋 List the available Models
 
 ```sh
-fetch_models --list
+ara2-fetch-models --list
 ```
 
 #### ⬇️ Download All YOLOv8 Models
 
 ```sh
 # Download all YOLOv8 variants from Hugging Face
-fetch_models --repo-id nxp/Ultralytics-YOLOv8-detection-Ara240
+ara2-fetch-models --repo-id nxp/Ultralytics-YOLOv8-detection-Ara240
 ```
 
 #### ⬇️ Download All YOLOX Models
 
 ```sh
 # Download all YOLOX variants from Hugging Face
-fetch_models --repo-id nxp/YOLOX-Detection-Ara240
+ara2-fetch-models --repo-id nxp/YOLOX-Detection-Ara240
 ```
 
 #### ⬇️ Download All YOLO11 Models
 
 ```sh
 # Download all YOLO11 variants from Hugging Face
-fetch_models --repo-id nxp/Ultralytics-YOLO11-Detection-Ara240
+ara2-fetch-models --repo-id nxp/Ultralytics-YOLO11-Detection-Ara240
 ```
 
 ### ✅ Verify Model Installation
@@ -323,10 +291,10 @@ If you encounter issues downloading models:
    df -h /usr/share/cnn/
    ```
 
-4. **🛠️ Check fetch_models Tool**
+4. **🛠️ Check ara2-fetch-models Tool**
 
    ```sh
-   fetch_models --help
+   ara2-fetch-models --help
    ```
 
 > **💡 Tip:** You only need to download the models you
@@ -339,7 +307,7 @@ If you encounter issues downloading models:
 ### Overview
 
 These videos are used for demonstration purposes in NXP's
-ARA2 Vision Examples, specifically for the YOLOv8
+ARA2 Vision Examples, specifically for the YOLO
 multi-stream object detection demo.
 
 ### Video Sources
@@ -387,64 +355,7 @@ specifications:
 
 ## 🎬 Download Sample Videos
 
-### 🔄 Automatic Download
-
-Sample videos are automatically downloaded and processed
-during package installation via the `ara2-vision-examples`
-Debian package postinstall script.
-
-The installation process will automatically:
-
-- Download 8 sample videos from Pixabay
-- Process and convert them to the required format
-  (640x360 H.264)
-- Store them in
-  `/usr/share/ara2-vision-examples/sample_videos/`
-
-**Example installation output:**
-
-```
-╔════════════════════════════════════════════════════════════════════════════════╗
-║                ARA-2 Vision Examples v1.1.0 - Installation                     ║
-╚════════════════════════════════════════════════════════════════════════════════╝
-
--> Fetching models from Hugging Face Hub
-────────────────────────────────────────────────────────────────────────────────
-   Downloading model: nxp/YOLOv8
- [OK] Downloaded: nxp/YOLOv8
-
--> Fetching Sample Videos
-────────────────────────────────────────────────────────────────────────────────
-   Fetching sample videos for testing...
-
---- Downloading video 0 ---
---- Processing video 0 ---
---- Done: video_0.ts ---
-...
-----------------------------------------
---- Summary ---
-Total videos: 12
-Successfully processed: 12
-Failed: 0
-----------------------------------------
-
- [OK] Sample videos downloaded successfully
-   Videos are available at: /usr/share/ara2-vision-examples/sample_videos/
-
-╔════════════════════════════════════════════════════════════════════════════════╗
-║                     Installation completed successfully!                       ║
-╚════════════════════════════════════════════════════════════════════════════════╝
-
-   The application is ready to use!
-   Sample videos are available at: /usr/share/ara2-vision-examples/sample_videos/
-```
-
-### 🖐️ Manual Download (Alternative)
-
-If the sample videos were not downloaded during
-installation or you need to re-download them manually,
-you can use the `fetch_videos.sh` script that was
-installed with the package:
+you can use the `fetch_videos.sh` script to download the available video samples:
 
 #### ⬇️ Download and Process Sample Videos
 
@@ -1578,7 +1489,7 @@ multistream_yolo -s 1 \
 - **List available endpoints:**
 
   ```sh
-  chip_info.sh
+  ara2-chip-info
   ```
 
 - **Verify Ara240 DNPU is detected:**
@@ -1616,7 +1527,7 @@ multistream_yolo -s 1 \
 - **Re-download models if missing:**
 
   ```sh
-  fetch_models --repo-id nxp/YOLOv8
+  ara2-fetch-models --repo-id nxp/YOLOv8
   ```
 
 - **Verify model file integrity:**
