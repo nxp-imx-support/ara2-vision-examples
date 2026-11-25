@@ -27,7 +27,7 @@ Including object detection, object classification, pose estimation, and semantic
 
 | Snapshot | Name | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Supported Platforms | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Implementation | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Supported Models |
 | :--- | --- | --- | :--- | :--- |
-| <a href="./tasks/object-detection/yolo/multistream-gstreamer/README.md"><img src="./images/yoloExample.webp" width="150" alt="multistream_yolo"></a> | [multistream_yolo](./tasks/object-detection/yolo/multistream-gstreamer/README.md) | <ul><li>FRDM i.MX 8M Plus</li><li>FRDM i.MX 95</li><li>FRDM i.MX 95 PRO</li></ul> | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C++ | <ul><li>YOLOv8n, YOLOv8s, YOLOv8m, YOLOv8l, YOLOv8x </li><li>YOLOxt, YOLOxs, YOLOxm, YOLOxl, YOLOxx </li><li>YOLO11n, YOLO11s, YOLO11m, YOLO11l, YOLO11x </li></ul>|
+| <a href="./tasks/object-detection/yolo/multistream-gstreamer/README.md"><img src="./images/yoloExample.webp" width="150" alt="multistream_yolo"></a> | [multistream_yolo README](./tasks/object-detection/yolo/multistream-gstreamer/README.md) | <ul><li>FRDM i.MX 8M Plus</li><li>FRDM i.MX 95</li><li>FRDM i.MX 95 PRO</li></ul> | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;C++ | <ul><li>YOLOv8n, YOLOv8s, YOLOv8m, YOLOv8l, YOLOv8x </li><li>YOLOxt, YOLOxs, YOLOxm, YOLOxl, YOLOxx </li><li>YOLO11n, YOLO11s, YOLO11m, YOLO11l, YOLO11x </li><li>YOLO26n, YOLO26s, YOLO26m, YOLO26l, YOLO26x </li></ul>|
 
 ### 1.1 Multi-stream Yolo
 
@@ -82,7 +82,43 @@ The detailed steps for testing this application are provided below.
 	```
 7. Power on the FRDM i.MX board and wait for the flashing process to complete.
 
-### 3.2 Running Ara240 Vision Examples
+### 3.2 Building from Source (Optional)
+
+If you need to build the project from source (for development or customization), follow these steps:
+
+#### Software Requirements
+
+- **ARA Runtime SDK:** The `imx-nxp-ara2` package must be installed
+  - Provides `ara-runtime.pc` pkg-config file required for CMake
+  - Included in i.MX Linux BSP 6.18.37_2.1.0 or later
+- **Yocto SDK Toolchain:** Cross-compilation toolchain for your target board
+  - Version: 6.18.37_2.1.0 or later
+  - Includes CMake, pkg-config, GCC
+
+#### Build Steps
+
+- Clone the repository:
+   ```bash
+   git clone https://bitbucket.sw.nxp.com/scm/mag/ara2-vision-examples.git
+   cd ara2-vision-examples
+   ```
+
+- Run the build script:
+   ```bash
+   bash build.sh /path/to/sdk/environment-setup-armv8-2a-poky-linux
+   # environment-setup-armv8-2a-poky-linux configures `PKG_CONFIG_PATH` to find `ara-runtime.
+   ```
+
+#### ARA Runtime standalone verification
+
+Verify the ARA Runtime SDK is available in your environment:
+```bash
+source /path/to/sdk/environment-setup-armv8-2a-poky-linux
+pkg-config --exists ara-runtime && echo "ARA Runtime found" || echo "ARA Runtime not found"
+pkg-config --modversion ara-runtime
+```
+
+### 3.3 Running Ara240 Vision Examples
 
 This application is already available in NXP's [GoPoint for i.MX Applications Processors](https://www.nxp.com/design/design-center/software/i-mx-developer-resources/gopoint-for-i-mx-applications-processors:GOPOINT) launcher, to run it follow the next steps:
 1. Connect the HDMI display, USB camera and mouse to your FRDM i.MX board (a USB hub might be needed). 
@@ -182,7 +218,6 @@ Yes, you can replace the default sample videos with your own content, just consi
 
 <!----- Toolchains ----->
 [![Toolchain badge](https://img.shields.io/badge/Toolchain-GCC-orange)](https://mcuxpresso.nxp.com/appcodehub?toolchain=gcc)
-
 
 Questions regarding the content/correctness of this example can be entered as Issues within this GitHub repository.
 

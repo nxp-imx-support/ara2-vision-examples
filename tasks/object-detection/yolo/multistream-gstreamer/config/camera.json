@@ -1,0 +1,14 @@
+{
+  "streams": [
+    {
+      "type": "camera_libcamera",
+      "camera_id": "/base/soc/bus@42000000/i2c@42530000/max96724@27/i2c-mux/i2c@0/mx95mbcam@40",
+      "width": 1920, "height": 1080, "fps": 30,
+      "record": true,
+      "record_dir": "/root/recordings",
+      "record_segment_sec": 20,
+      "record_max_files": 10
+    }
+  ]
+}
+

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Multi-stream GStreamer Example for YOLOv8 / YOLOX / YOLO11
+# Multi-stream GStreamer Example for YOLOv8 / YOLOX / YOLO11 / YOLO26
 
 [![License](https://img.shields.io/badge/License-BSD_3_Clause-red)](./LICENSE.txt)
 [![Platforms](https://img.shields.io/badge/Platforms-FRDM_i.MX_8M_Plus_|_FRDM_i.MX_95|_FRDM_i.MX_95_PRO-blue)](https://www.nxp.com/products/processors-and-microcontrollers/arm-processors/i-mx-applications-processors:IMX_HOME)
@@ -14,7 +14,7 @@
 ## 📖 Example Description
 
 This example demonstrates multi-stream object detection using
-YOLOv8, YOLOX, and YOLO11 models accelerated by the NXP Ara240 
+YOLOv8, YOLOX, YOLO11, and YOLO26 models accelerated by the NXP Ara240 
 DNPU. It leverages GStreamer to process up to 
 **eight simultaneous video streams** from **multiple input sources** 
 including cameras 📹, video files 🎬, RTSP streams 📡.
@@ -91,23 +91,21 @@ graph LR
 - 🎥 **Multi-Stream Processing**: Handles 1 to 16 videos
   streams concurrently with real-time* object detection
 - 🔀 **Multiple Input Sources**: Support for cameras, video
-  files, RTSP streams, and test patterns
+  files, and RTSP streams
 - 📹 **Camera Support**: Direct V4L2 camera input with
   hardware-accelerated ISP
 - 🎬 **Video File Support**: H.264, H.265 video file playback with
   hardware decoding
 - 📡 **RTSP Streaming**: Connect to IP cameras and RTSP
   sources
-- 🎨 **Test Patterns**: Built-in test pattern generator for
-  debugging
 - 🔀 **Mixed Sources**: Combine different input types in a
   single session
 - 📄 **JSON Configuration**: Load complex multi-stream
   setups from configuration files
 - ⚡ **Hardware Acceleration**: Utilizes NXP Ara240 DNPU
-  for efficient YOLOv8, YOLOX, and YOLO11 inference
+  for efficient YOLOv8, YOLOX, YOLO11, and YOLO26 inference
 - 🎯 **Multiple Model Support**: Choose from YOLOv8,
-  YOLOX, and YOLO11 variants (nano, small, medium, large,
+  YOLOX, YOLO11, and YOLO26 variants (nano, small, medium, large,
   extra-large) to balance speed and accuracy
 - 🎬 **GStreamer Integration**: Built on robust GStreamer
   framework for video processing and pipeline management
@@ -120,6 +118,9 @@ graph LR
   each stream
 - 📈 **Detailed Performance Stats Mode**: Optional extended
   performance diagnostics
+- 🎯 **Object Tracking**: Optional ByteTrack-based tracker
+  that assigns persistent IDs to detected objects across
+  frames, with configurable class filtering
 
 ## 🎯 Target Applications
 
@@ -151,7 +152,8 @@ graph LR
 - **Detection Capabilities**: Real-time object detection
 - **Model Variants**: YOLOv8n, YOLOv8s, YOLOv8m, YOLOv8l,
   YOLOv8x, YOLOXt, YOLOXs, YOLOXm, YOLOXl, YOLOXx, YOLO11n, 
-  YOLO11s, YOLO11m, YOLO11l, YOLO11x
+  YOLO11s, YOLO11m, YOLO11l, YOLO11x,
+  YOLO26n, YOLO26s, YOLO26m, YOLO26l, YOLO26x
 
 #### 🎬 Video Processing
 
@@ -159,9 +161,39 @@ graph LR
   support
 - **RTSP Streaming**: IP cameras and network video sources
 - **Video Files**: .ts with H.264/H.265 codec support
-- **Test Patterns**: SMPTE, snow, black, and other test
-  patterns
 - **Buffering**: Hardware-accelerated video decoding
+- **Codec Auto-Detection**: At startup, the application detects the codec of each
+  stream and displays it in the stream summary table:
+  - **Video files**: detected via `gst-discoverer-1.0`
+  - **RTSP streams**: detected via RTSP DESCRIBE / SDP negotiation
+  - **Camera streams** (V4L2 / libcamera): always `raw` (uncompressed YUV output)
+
+- **Resolution Discovery**: the table also reports each stream's
+  **Initial Resolution** (what the source actually sends) and **Final
+  Resolution** (the size the pipeline and the model see):
+  - **Video files**: probed from the file.
+  - **RTSP streams**: probed from the live stream before the pipeline is
+    built, in parallel for all RTSP streams. For H.264/H.265 the size is read
+    from the stream parameters without decoding. The wait is bounded (default
+    5 s, override with `RTSP_PROBE_TIMEOUT_SEC=<1-60>`). If the probe fails
+    (camera down, wrong URL, auth error) a warning with the reason is printed,
+    the Initial Resolution shows `unknown`, and a 640x360 fallback is used for
+    the pipeline.
+  - **V4L2 cameras**: the configured capture size.
+  - **Final Resolution** is the initial size scaled, keeping the aspect ratio,
+    to fit the model input (rounded down to even numbers). A source smaller
+    than the model is scaled up to fill it. This applies to every source
+    type, including auto-discovered sample videos.
+
+  Example startup output for a 512x320 model:
+  | Stream   | Initial Resolution   | Final Resolution  | Codec    |
+  |----------|----------------------|-------------------|----------|
+  | 0        | 1920x1080            | 512x288           | h264     |
+  | 1        | 1280x720             | 512x288           | h265     |
+  | 2        | 640x480              | 426x320           | raw      |
+  | 3        | unknown              | 640x360           | h264     |
+
+  Stream 3 is an RTSP source whose probe failed.
 
 #### 🔌 Connectivity Options
 
@@ -205,11 +237,153 @@ The application supports multiple input source types:
 > **💡 Tip**: Use `--list-cameras` to detect available
 > V4L2 cameras on your system.
 
+#### 📷 libcamera Streams
+
+- **libcamera Sources**: Cameras exposed via the libcamera framework
+- **Camera Selection**: Configurable via `camera_id` (full device path)
+- **Dewarp Support**: Optional dewarp via the `DEWARP` environment variable
+- **Recording**: Supports clip recording to MP4 segments (H.265, re-encoded)
+  with configurable segment duration and rolling file retention
+
+Example dewarp variable:
+export DEWARP="imxvideoconvert_g2d video-warp-enable=true video-warp-coord-file=/root/Buffer_69b8aa441d_10-2-24.bin"
+
+**JSON configuration example:**
+```json
+{
+  "type": "camera_libcamera",
+  "camera_id": "/base/soc/.../mx95mbcam@40",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "record": true,
+  "record_dir": "/root/recordings",
+  "record_segment_sec": 60,
+  "record_max_files": 10
+}
+
+| Field                  | Default                                    | Description                                       |
+|------------------------|--------------------------------------------|---------------------------------------------------|
+| `camera_id`            | `""`                                       | Full libcamera device path                        |
+| `width`                | -                                          | Capture width in pixels                           |
+| `height`               | -                                          | Capture height in pixels                          |
+| `fps`                  | -                                          | Capture frame rate                                |
+| `record`               | `false`                                    | Enable clip recording                             |
+| `record_dir`           | `/var/lib/ara2-vision-examples/recordings` | Output directory for MP4 segments                 |
+| `record_segment_sec`   | `60`                                       | Duration of each MP4 segment in seconds           |
+| `record_max_files`     | `10`                                       | Maximum number of segments to keep                |
+
 #### 📡 RTSP Streams
 
 - **IP Cameras**: Network cameras with RTSP support
 - **Configurable Latency**: Adjustable buffering (default:
   200ms)
+- **Clip Recording**: Optionally record the clean decoded
+  stream to disk with a bounded, rolling retention window
+  (see below)
+
+## 📼 RTSP Clip Recording
+
+RTSP streams can optionally be recorded to disk. Recording is
+**RTSP-only** and is configured **entirely through the JSON
+config file** (there are no CLI recording flags).
+
+Cameras typically expose two substreams: a **low-resolution** one
+(`url`) used for inference/display, and a **high-resolution**
+one (`record_url`) used for recording only. The recorder pulls
+`record_url` with its own `rtspsrc` and writes it to disk as MP4
+segments **without re-encoding** (H.264 or H.265 passthrough; the
+codec is auto-detected from `record_url`). Any audio track (e.g. AAC)
+is ignored — recording is video-only. Old segments are deleted
+automatically so disk usage stays bounded.
+
+
+```json
+{
+  "type": "rtsp",
+  "url": "rtsp://192.168.1.100:554/stream2",
+  "record_url": "rtsp://192.168.1.100:554/stream1",
+  "record": true,
+  "record_dir": "/var/lib/ara2-vision-examples/recordings",
+  "segment_seconds": 60,
+  "retention_minutes": 30
+}
+```
+
+| Field               | Default                                    | Description                                       |
+|---------------------|--------------------------------------------|---------------------------------------------------|
+| `record`            | `false`                                    | Enable recording for this stream                  |
+| `record_url`        | `""`                                       | High-res **H.264 or H.265/HEVC** substream to record (required) |
+| `record_dir`        | `/var/lib/ara2-vision-examples/recordings` | Where MP4 segments are written (**absolute path only**) |
+| `segment_seconds`   | `60`                                       | Duration of each MP4 segment                      |
+| `retention_minutes` | `30`                                       | Rolling window kept (older segments are deleted)  |
+
+> **⚠️ Constraints:**
+> - **Retention**: old segments are pruned by an application-side janitor, not
+>   by `splitmuxsink`. Because segment names are supplied via the GStreamer
+>   `format-location` signal (to produce timestamped `cam<N>_<timestamp>.mp4`
+>   names), `splitmuxsink`'s built-in `max-files` pruning never fires. Instead a
+>   periodic timer (every 30 s) keeps only the newest `ceil(retention_minutes*60
+>   / segment_seconds)` files matching the `cam<N>_` prefix per `record_dir` and
+>   deletes the rest. It also prunes once at startup, so a restart reclaims disk
+>   left over from a prior run.
+> - **Codec**: recording supports **H.264 and H.265/HEVC** via passthrough
+
+>   (no decode/re-encode). The video codec is auto-detected from `record_url`
+>   and the recorder selects the matching RTP caps
+>   (`encoding-name=H264`/`H265`) and depay/parse pair
+>   (`rtph264depay`/`h264parse` or `rtph265depay`/`h265parse`). Only the
+>   video track is recorded; any audio track (e.g. AAC) is ignored. If the
+>   codec cannot be detected, the recorder assumes H.265 and logs a warning.
+> - **Path**: `record_dir` must be an **absolute path** (must start with
+>   `/`). Relative paths are rejected and recording is disabled for that
+
+>   stream. Missing parent directories are created automatically, and the
+>   directory must be writable; if it exists but is not writable, recording
+>   is disabled for that stream with a warning.
+> - **Unclean shutdown**: robust muxing keeps the segment currently being
+>   recorded playable, so a crash or forced kill (e.g. `SIGKILL`, power loss)
+>   leaves the last segment playable but **not cleanly finalized**. Earlier,
+>   already-rolled segments are unaffected.
+
+
+Recording needs both `record: true` **and** a non-empty
+`record_url`; otherwise it is disabled for that stream. Segments
+are self-contained MP4 files named `cam<N>_<timestamp>.mp4` (for
+
+example `cam0_2026_08_20_114000.mp4`), playable with any media
+player, e.g. `gst-play-1.0 <file>`.
+
+### RTSP Output (camera_libcamera, headless mode)
+
+| JSON key     | Type   | Default | Description                                      |
+|--------------|--------|---------|--------------------------------------------------|
+| `rtsp_out`   | bool   | false   | Enable RTSP output via MediaMTX                  |
+| `rtsp_port`  | int    | 8554    | RTSP server port (MediaMTX must be running)      |
+
+`rtsp_port` must be in the range 1-65535; out-of-range or
+non-numeric values are rejected with a warning and the default
+`8554` is used instead.
+
+Run MediaMTX on the board before launching the application:
+
+```sh
+./mediamtx &
+./multistream_yolo --headless -f config.json --ws-detections --ws-port 8765
+```
+
+Each stream is published as `rtsp://127.0.0.1:<rtsp_port>/cam<N>`,
+where `<N>` is the stream index. Recording and RTSP output share a
+single H.264 encoder, so enabling both costs no extra encode pass.
+H.264 is used (rather than the H.265 passthrough of the RTSP-source
+recorder) because MediaMTX republishes the stream over WebRTC, and
+browsers do not reliably support H.265 in WebRTC.
+
+View the detections in a browser at:
+
+```
+http://<ipaddr_of_board>
+```
 
 #### 🎬 Video Files
 
@@ -266,6 +440,7 @@ successfully:
 ls -lh /usr/share/cnn/detection/yolov8*
 ls -lh /usr/share/cnn/detection/yolox*
 ls -lh /usr/share/cnn/detection/yolo11*
+ls -lh /usr/share/cnn/detection/yolo26*
 ```
 
 ### 🔍 Troubleshooting Model Downloads
@@ -715,25 +890,6 @@ multistream_yolo -s 2 \
   --video video2.ts
 ```
 
-### 🎨 Test Pattern Sources
-
-#### 🔲 Single Test Pattern
-
-Use built-in test patterns for debugging:
-
-```sh
-# Default test pattern (SMPTE)
-multistream_yolo -s 1 --test-pattern
-
-# Multiple test patterns
-multistream_yolo -s 4 \
-  --test-pattern \
-  --test-pattern \
-  --test-pattern \
-  --test-pattern
-```
-
-> **💡 Note**: Test patterns are useful for verifying
 > pipeline functionality without requiring actual video
 > sources.
 
@@ -741,7 +897,7 @@ multistream_yolo -s 4 \
 
 #### 🎭 Combining Different Source Types
 
-Mix cameras, RTSP, video files, and test patterns in a
+Mix cameras, RTSP, and video files in a
 single session:
 
 ```sh
@@ -755,13 +911,6 @@ multistream_yolo -s 2 \
   -c /dev/video0 \
   -v video.ts
 
-# Camera + RTSP + Video + Test Pattern
-multistream_yolo -s 4 \
-  -c /dev/video0 \
-  -r rtsp://camera.local/stream \
-  -v video.ts \
-  --test-pattern
-
 # Complex mix of 16 streams
 multistream_yolo -s 16 \
   -c /dev/video0 \
@@ -770,8 +919,6 @@ multistream_yolo -s 16 \
   -r rtsp://cam2.local/stream \
   -v video1.ts \
   -v video2.ts \
-  --test-pattern \
-  --test-pattern
 ```
 
 > **⚠️ Note**: When mixing sources, streams are assigned
@@ -802,20 +949,19 @@ Create a file `streams.json`:
     },
     {
       "type": "rtsp",
-      "url": "rtsp://192.168.1.100:554/stream",
+      "url": "rtsp://192.168.1.100:554/stream2",
+      "record_url": "rtsp://192.168.1.100:554/stream1",
       "latency_ms": 200,
-      "use_tcp": true
+      "use_tcp": true,
+      "record": true,
+      "record_dir": "/var/lib/ara2-vision-examples/recordings",
+      "segment_seconds": 60,
+      "retention_minutes": 30
     },
     {
       "type": "video",
       "filepath": "/path/to/video.ts"
     },
-    {
-      "type": "test_pattern",
-      "pattern": 0,
-      "width": 640,
-      "height": 360
-    }
   ]
 }
 ```
@@ -847,7 +993,7 @@ multistream_yolo -f streams.json -s 2
 
 ### 🤖 Model Selection
 
-The application supports different YOLOv8, YOLOX, and YOLO11
+The application supports different YOLOv8, YOLOX, YOLO11, and YOLO26
 model variants via the `-m` or `--model` flag. Available models
 include:
 
@@ -868,6 +1014,11 @@ include:
 | **yolo11m** | YOLO11 | Medium |
 | **yolo11l** | YOLO11 | Large |
 | **yolo11x** | YOLO11 | XL |
+| **yolo26n** | YOLO26 | Nano |
+| **yolo26s** | YOLO26 | Small |
+| **yolo26m** | YOLO26 | Medium |
+| **yolo26l** | YOLO26 | Large |
+| **yolo26x** | YOLO26 | XL |
 
 #### ▶️ Run with Different Models
 
@@ -929,10 +1080,48 @@ multistream_yolo -s 4 \
 multistream_yolo -s 1 \
   -c /dev/video0 \
   --model yolo11l
+
+# YOLO26 Nano for fastest inference
+multistream_yolo -s 8 \
+  -c /dev/video0 \
+  --model yolo26n
+
+# YOLO26 Small for balanced performance
+multistream_yolo -s 4 \
+  -c /dev/video0 \
+  --model yolo26s
+
+# YOLO26 Large for high accuracy
+multistream_yolo -s 1 \
+  -c /dev/video0 \
+  --model yolo26l
 ```
 
+#### 🔓 Using a Custom or Third-Party Model (Wildcard Passthrough)
+
+The `-m` flag also accepts any directory name that exists under
+`/usr/share/cnn/detection/` — even if it is not in the built-in list.
+This lets you use future model families or custom models without
+recompiling the application. Model names must not contain `..` or `/`.
+
+```sh
+# Use a custom model stored at /usr/share/cnn/detection/my_custom_model/model.dvm
+multistream_yolo -s 2 -c /dev/video0 -m my_custom_model
+
+# Use an absolute path to a model file anywhere on the filesystem
+multistream_yolo -s 1 -c /dev/video0 \
+  -m /opt/models/my_detector/model.dvm
+```
+
+> **💡 How it works:** When the value passed to `-m` is not a known
+> built-in name, the application first checks
+> `/usr/share/cnn/detection/<name>/model.dvm`. If that file exists it
+> is loaded automatically. If the value contains a `/` it is treated
+> as a direct file path. If neither condition matches, an error is
+> printed with instructions.
+
 > **⚠️ Performance Note:** Larger models (yolov8l,
-> yolov8x, yoloxl, yolo11l, yolo11x) and higher resolution
+> yolov8x, yoloxl, yolo11l, yolo11x, yolo26l, yolo26x) and higher resolution
 > inputs (640×640) provide better accuracy but require more
 > computational resources, which may reduce the maximum number
 > of streams you can run simultaneously while maintaining
@@ -996,6 +1185,95 @@ multistream_yolo -s 4 --headless -t 2
 
 # Headless with detailed perf stats
 multistream_yolo -s 4 --headless -p
+```
+Automatic Headless Fallback:
+If WAYLAND_DISPLAY is not set or the Wayland compositor is unreachable at startup,
+the application automatically switches to headless mode and prints:
+
+[WARN] No Wayland display detected … Switching to --headless mode automatically.
+
+This avoids a crash when Weston has not been started.
+
+### 🔌 WebSocket Detection Output
+
+The application can broadcast each frame's detections as JSON over a
+WebSocket, letting external tools consume the detection stream for
+overlays, logging, analytics, or any other downstream use. It is
+enabled with the `--ws-detections` flag; the server listens on port
+`8765` by default and the port can be changed with `--ws-port`.
+
+```sh
+# Publish detections on the default port (8765)
+multistream_yolo -f streams.json --ws-detections
+
+# Publish detections on a custom port
+multistream_yolo -f streams.json --ws-detections --ws-port 9000
+```
+
+Each message is a JSON object describing one processed frame:
+
+```json
+{
+  "camera": "cam0",
+  "rtp_ts": 3125551234,
+  "boxes": [
+    { "x": 120, "y": 80, "width": 150, "height": 300,
+      "label": "person", "confidence": 0.92, "track_id": 7,
+      "normalized": false }
+  ]
+}
+```
+
+- `camera`: identifier of the source stream the detections belong to.
+- `rtp_ts`: the RTP packet's own timestamp as carried on the wire
+  (90 kHz clock), included so detections can be aligned with the exact
+  source frame. It is present **only for RTSP streams**.
+- `boxes`: array of detected objects. Coordinates (`x`, `y`, `width`,
+  `height`) are in video pixel space (`normalized` is always `false`).
+  `track_id` is included when object tracking is enabled.
+
+### 🎯 Object Tracking
+
+The application includes an optional
+[ByteTrack](https://github.com/FoundationVision/ByteTrack)-based
+tracker that assigns a persistent ID to each detected object
+and follows it across frames. It uses a Kalman filter and
+two-stage data association: high-score detections are matched
+first, then objects are recovered from remaining low-score
+detections, which reduces identity switches and better handles
+occlusion. Tracking is **disabled by default** and is enabled
+with the `--track` flag.
+
+Use the `--track-class` flag to choose which class is tracked:
+
+- A COCO class name (e.g., `person`, `car`, `dog`)
+- A COCO class id (0-79)
+- `all` to track objects of every class
+
+When `--track` is set without `--track-class`, the tracker
+tracks all classes by default.
+
+> **💡 Note**: Passing `--track-class` automatically enables
+> tracking, so `--track` is not required.
+
+The tracker is fully self-contained (it needs no external
+dependencies) and produces stable track IDs consumed by the
+rendering path.
+
+#### ▶️ Run with Tracking
+
+```sh
+# Track a specific class by name
+multistream_yolo --track --track-class car \
+  -c /dev/video0
+
+# Track a specific class by COCO id (e.g., 2 = car)
+multistream_yolo --track --track-class 2 \
+  -c /dev/video0
+
+# Track all classes
+multistream_yolo --track --track-class all \
+  -f streams.json -m yolov8s
 ```
 
 ### 🔄 Synchronization Control
@@ -1197,47 +1475,66 @@ multistream_yolo \
 multistream_yolo [OPTIONS]
 
 Options:
-  -s, --stream <1-16>      Number of streams (default: 8)
-  -e, --endpoint <0-10>   ARA2 Endpoint (default: 0)
-  -g, --group <pcie|all>  Device group (default: all)
-  -y, --sync <true|false> Enable sync (default: false)
-  -m, --model <name>      Model: yolov8n/s/m/l/x
-                          (default: yolov8n)
-  -t <seconds>            Stats interval, 0=disable
-                          (default: 2)
-  -p, --perf-stats        Enable detailed performance
-                          statistics (default: disabled)
-  -r, --rtsp <url>        RTSP stream URL
-  -v, --video <file>      Video file path
-  --test-pattern          Use test pattern source
-  -f, --config <file>     Load stream configuration from JSON file
-                          (automatically sets stream count from file)
 
-  Waylandsink window Configuration:
-  --width <pixels>        Window width (default: 1920)
-  --height <pixels>       Window height (default: 1080)
+General Options:
+  -s, --stream <1-16>           Number of streams to process
+                                (default: auto-detected from available videos)
+                                Note: Ignored when using -f/--config
+  -e, --endpoint <0-10>         ARA2 Endpoint to use (default: 0)
+  -g, --group <pcie|all>        Device group (default: all)
+  -y, --sync <true|false>       Enable/disable Waylandsink synchronization
+                                (default: false)
+  -m, --model <name>            Select model. Currently supported models:
+                                YOLOv8: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+                                YOLOx : yoloxt, yoloxs, yoloxs_512, yoloxm, yoloxl, yoloxx
+                                YOLO11: yolo11n, yolo11s, yolo11m, yolo11l, yolo11x
+                                YOLO26: yolo26n, yolo26s, yolo26m, yolo26l, yolo26x
+  -t <seconds>                  Console stats refresh interval; 0 = disable
+                                (default: 2)
+  -p, --perf-stats              Enable detailed performance stats every 5 seconds
+  --cpu-stats                   Show process CPU% (core units, per-stream)
+                                gallery size in the console TOTAL block (implied by -p)
+  -d, --debug                   Enable pipeline debug logging
+  -h, --help                    Show this help message
 
-  📹 Camera Options:
-  -c, --camera <device>   Camera device (e.g.,
-                          /dev/video0)
-                          Can be specified multiple
-                          times
-  --camera-width <width>  Camera width (default: 640)
-  --camera-height <height> Camera height (default: 360)
-  --camera-fps <fps>      Camera framerate
-                          (default: 30)
-  --list-cameras          List available cameras and
-                          exit
-  
-  🎨 Display Options:
-  --no-bbox               Disable bounding boxes
-  --no-osd-stats          Disable OSD statistics
-  --only-bbox             Show only boxes, no labels
-  --headless              Run without a display,
-                          track metrics only
+Window Configuration:
+  --width <pixels>              Window width (default: 1920)
+  --height <pixels>             Window height (default: 1080)
 
-  -d, --debug             To debug the pipeline
-  -h, --help              Show help message
+Stream Source Options:
+  -c, --camera <device>         Camera device (e.g., /dev/video0)
+  -r, --rtsp <url>              RTSP stream URL
+  -v, --video <file>            Video file path
+  -f, --config <file>           Load stream configuration from JSON file
+                                (automatically sets stream count from file)
+  --list-cameras                List available V4L2 cameras and exit
+
+Camera Options:
+  --camera-width <width>        Camera width (default: 640)
+  --camera-height <height>      Camera height (default: 360)
+  --camera-fps <fps>            Camera framerate (default: 30)
+
+Display Options:
+  --no-bbox                     Draw no bounding boxes and labels
+  --no-osd-stats                No on-screen stats display
+  --only-bbox                   Draw only bounding boxes, no labels
+  --headless                    Run without a display; track metrics only
+
+Object Tracking Options:
+  --track                       Enable object tracking (default: disabled)
+  --track-class <name|id|all>   Class to track (COCO class name or id, or 'all';
+                                default: all). Implies --track if not set.
+
+
+WebSocket Detection Server:
+  --ws-detections               Publish detections over WebSocket
+  --ws-port <port>              WebSocket server port (default: 8765)
+
+Default Behavior:
+  When no source flags (-c, -v, -r, -f) are used,
+  the application auto-discovers .ts files in:
+    /usr/share/ara2-vision-examples/sample_videos/
+  and sets the stream count to the number of videos found (max 8).
 ```
 
 ## 💡 Performance Recommendations
@@ -1555,6 +1852,10 @@ multistream_yolo -s 1 \
   ```sh
   gst-launch-1.0 videotestsrc ! waylandsink
   ```
+
+```
+
+---
 
 ### 🐛 General Debugging
 

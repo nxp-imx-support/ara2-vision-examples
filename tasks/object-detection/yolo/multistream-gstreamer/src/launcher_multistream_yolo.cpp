@@ -25,8 +25,6 @@ public:
     GtkWidget *no_bbox_check;
     GtkWidget *no_osd_stats_check;
     GtkWidget *only_bbox_check;
-    GtkWidget *window_width_spin;
-    GtkWidget *window_height_spin;
     GtkWidget *resolution_preset_combo;
     GtkWidget *status_label;
     GtkWidget *launch_button;
@@ -37,6 +35,8 @@ public:
     GtkWidget *models_status_label;
     GtkWidget *download_videos_button;
     GtkWidget *videos_status_label;
+    GtkWidget *camera_combo;
+    GtkWidget *track_class_combo;
     pid_t child_pid;
 };
 
@@ -48,7 +48,6 @@ struct ResolutionPreset
 };
 
 static const ResolutionPreset RESOLUTION_PRESETS[] = {
-    {"Custom", 0, 0},
     {"HD (1280x720)", 1280, 720},
     {"Full HD (1920x1080)", 1920, 1080},
     {"WQHD (2560x1440)", 2560, 1440},
@@ -64,7 +63,7 @@ static bool check_videos_downloaded();
 static void on_download_videos_clicked(GtkWidget *button, gpointer user_data);
 static gboolean on_window_delete_event(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static void on_resolution_preset_changed(GtkWidget *combo_box, gpointer user_data);
-static void on_window_dimension_changed(GtkWidget *spin_button, gpointer user_data);
+static void on_camera_popup_shown(GObject *obj, GParamSpec *pspec, gpointer user_data);
 
 // Global pointer to the main window for signal handler
 static GtkWidget *g_main_window = nullptr;
@@ -140,6 +139,57 @@ static int get_endpoint_count()
     return endpoint_count;
 }
 
+// Populate (or refresh) the camera combo box by running
+// "multistream_yolo --list-cameras" and parsing its output.
+// Each line printed by that command has the form: "/dev/videoN - Card Name"
+// Shows "No device detected" (greyed out) when nothing is found.
+static void refresh_camera_combo(AppWidgets *widgets)
+{
+    gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(widgets->camera_combo));
+
+    // Run the helper; redirect stderr so stray GStreamer/driver messages don't
+    // appear on the user's terminal and don't pollute the pipe.
+    FILE *fp = popen("multistream_yolo --list-cameras 2>/dev/null", "r");
+    std::vector<std::string> lines;
+    if (!fp) {
+        g_warning("refresh_camera_combo: popen failed — is multistream_yolo on PATH?");
+    }
+    else {
+        char buf[256];
+        while (fgets(buf, sizeof(buf), fp) != nullptr)
+        {
+            // Strip trailing newline / carriage return
+            std::string line(buf);
+            while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+                line.pop_back();
+
+            // Keep only lines that look like a device entry ("/dev/...")
+            if (line.rfind("/dev/", 0) == 0)
+                lines.push_back(line);
+        }
+        pclose(fp);
+    }
+
+    if (lines.empty())
+    {
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->camera_combo),
+                                       "No device detected");
+        gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->camera_combo), 0);
+        gtk_widget_set_sensitive(widgets->camera_combo, FALSE);
+        return;
+    }
+
+    gtk_widget_set_sensitive(widgets->camera_combo, TRUE);
+
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->camera_combo),
+                                   "None  (use video files)");
+    for (const auto &line : lines)
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->camera_combo),
+                                       line.c_str());
+
+    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->camera_combo), 0);
+}
+
 // Returns list of model names available on disk under /usr/share/cnn/detection/
 static std::vector<std::string> get_available_models()
 {
@@ -148,6 +198,7 @@ static std::vector<std::string> get_available_models()
         "yolov8n", "yolov8s", "yolov8m", "yolov8l", "yolov8x",
         "yoloxs",  "yoloxt",  "yoloxm",  "yoloxl",  "yoloxx",
         "yolo11n", "yolo11s", "yolo11m", "yolo11l", "yolo11x",
+        "yolo26n", "yolo26s", "yolo26m", "yolo26l", "yolo26x",
         nullptr
     };
 
@@ -172,7 +223,6 @@ static bool check_models_downloaded()
 // Shows "--- No models ---" when none are found; selects yolov8n when present.
 static void refresh_model_combo(AppWidgets *widgets)
 {
-    // Remove all existing entries
     gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(widgets->model_combo));
 
     std::vector<std::string> avail_models = get_available_models();
@@ -191,9 +241,7 @@ static void refresh_model_combo(AppWidgets *widgets)
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->model_combo),
                                        avail_models[mi].c_str());
         if (avail_models[mi] == "yolov8n")
-        {
             default_index = mi;
-        }
     }
     gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->model_combo), default_index);
 }
@@ -451,8 +499,34 @@ static void on_launch_clicked(GtkWidget *button, gpointer user_data)
     gboolean no_bbox = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets->no_bbox_check));
     gboolean no_osd_stats = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets->no_osd_stats_check));
     gboolean only_bbox = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widgets->only_bbox_check));
-    int window_width = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widgets->window_width_spin));
-    int window_height = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(widgets->window_height_spin));
+    int preset_idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widgets->resolution_preset_combo));
+    static constexpr int N_PRESETS = static_cast<int>(std::size(RESOLUTION_PRESETS));
+    if (preset_idx < 0 || preset_idx >= N_PRESETS)
+        preset_idx = 1; // default to Full HD
+    int window_width  = RESOLUTION_PRESETS[preset_idx].width;
+    int window_height = RESOLUTION_PRESETS[preset_idx].height;
+
+    // Resolve selected camera (index 0 = "None", index 1+ = actual device).
+    // The combo entry comes directly from --list-cameras output: "/dev/videoN - Card Name".
+    // Extract the device path (everything before " - ").
+    std::string camera_device;
+    {
+        int cam_idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widgets->camera_combo));
+        if (cam_idx > 0)
+        {
+            gchar *cam_text = gtk_combo_box_text_get_active_text(
+                GTK_COMBO_BOX_TEXT(widgets->camera_combo));
+            if (cam_text)
+            {
+                std::string s(cam_text);
+                g_free(cam_text);
+                size_t sep = s.find(" - ");
+                camera_device = (sep != std::string::npos) ? s.substr(0, sep) : s;
+                while (!camera_device.empty() && camera_device.back() == ' ')
+                    camera_device.pop_back();
+            }
+        }
+    }
 
     // Update status
     gtk_label_set_text(GTK_LABEL(widgets->status_label), "Launching application...");
@@ -484,12 +558,37 @@ static void on_launch_clicked(GtkWidget *button, gpointer user_data)
             args.push_back(std::to_string(endpoint));
         }
 
+        // If the user picked a camera, route all streams through it.
+        if (!camera_device.empty())
+        {
+            args.push_back("-c");
+            args.push_back(camera_device);
+        }
+
         if (no_bbox)
             args.push_back("--no-bbox");
         if (no_osd_stats)
             args.push_back("--no-osd-stats");
         if (only_bbox)
             args.push_back("--only-bbox");
+
+        // If a tracking class is selected (index > 0), add --track --track-class <class>.
+        // Index 0 = "None (disabled)", indices 1-8 = actual class names.
+        {
+            int track_idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widgets->track_class_combo));
+            if (track_idx > 0)
+            {
+                gchar *track_class = gtk_combo_box_text_get_active_text(
+                    GTK_COMBO_BOX_TEXT(widgets->track_class_combo));
+                if (track_class)
+                {
+                    args.push_back("--track");
+                    args.push_back("--track-class");
+                    args.push_back(std::string(track_class));
+                    g_free(track_class);
+                }
+            }
+        }
 
         // Convert to char*
         std::vector<char *> argv;
@@ -540,7 +639,7 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     // Create main window
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "Multistream YOLO Launcher");
-    gtk_window_set_default_size(GTK_WINDOW(window), 550, 600);
+    gtk_window_set_default_size(GTK_WINDOW(window), 520, 480);
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
 
     // Store window globally for signal handler
@@ -629,6 +728,26 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     gtk_widget_set_sensitive(widgets->download_videos_button, !videos_available);
     gtk_box_pack_start(GTK_BOX(videos_box), widgets->download_videos_button, FALSE, FALSE, 0);
 
+    // Camera Source section
+    {
+        GtkWidget *camera_frame = gtk_frame_new("Camera Source");
+        gtk_box_pack_start(GTK_BOX(main_box), camera_frame, FALSE, FALSE, 0);
+
+        GtkWidget *camera_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+        gtk_container_set_border_width(GTK_CONTAINER(camera_box), 8);
+        gtk_container_add(GTK_CONTAINER(camera_frame), camera_box);
+
+        widgets->camera_combo = gtk_combo_box_text_new();
+        gtk_box_pack_start(GTK_BOX(camera_box), widgets->camera_combo, FALSE, FALSE, 0);
+
+        // Re-scan cameras every time the drop-down opens so a device
+        // plugged in after the launcher started appears without a restart.
+        g_signal_connect(widgets->camera_combo, "notify::popup-shown",
+                         G_CALLBACK(on_camera_popup_shown), widgets.get());
+
+        // Populated below after all widgets are set up
+    }
+
     // Create grid for parameters
     GtkWidget *label = nullptr;
     GtkWidget *grid = gtk_grid_new();
@@ -637,6 +756,13 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     gtk_box_pack_start(GTK_BOX(main_box), grid, TRUE, TRUE, 0);
 
     int row = 0;
+
+    // General Options header
+    label = gtk_label_new(nullptr);
+    gtk_label_set_markup(GTK_LABEL(label), "<b>General Options</b>");
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 2, 1);
+    row++;
 
     // Stream parameter (1-16)
     label = gtk_label_new("Number of Streams (1-16):");
@@ -717,8 +843,8 @@ static void on_activate(GtkApplication *app, gpointer user_data)
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, 2, 1);
     row++;
 
-    // Resolution preset (width/height spin buttons)
-    label = gtk_label_new("Resolution Preset:");
+    // Resolution preset
+    label = gtk_label_new("Resolution:");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
 
@@ -728,37 +854,51 @@ static void on_activate(GtkApplication *app, gpointer user_data)
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->resolution_preset_combo),
                                        RESOLUTION_PRESETS[i].name);
     }
-    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->resolution_preset_combo), 2); // Default to Full HD
+    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->resolution_preset_combo), 1); // Default to Full HD
     g_signal_connect(widgets->resolution_preset_combo, "changed",
                      G_CALLBACK(on_resolution_preset_changed), widgets.get());
     gtk_grid_attach(GTK_GRID(grid), widgets->resolution_preset_combo, 1, row, 1, 1);
     row++;
 
-    // Window width
-    label = gtk_label_new("Window Width (320-7680):");
+    // Separator before tracking section
+    {
+        GtkWidget *track_sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+        gtk_grid_attach(GTK_GRID(grid), track_sep, 0, row, 2, 1);
+        row++;
+    }
+
+    // Tracking header
+    label = gtk_label_new(nullptr);
+    gtk_label_set_markup(GTK_LABEL(label), "<b>Tracking</b>");
+    gtk_widget_set_halign(label, GTK_ALIGN_START);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 2, 1);
+    row++;
+
+    // Track class selection: index 0 = disabled, 1-8 = actual class names
+    label = gtk_label_new("Track:");
     gtk_widget_set_halign(label, GTK_ALIGN_START);
     gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
 
-    widgets->window_width_spin = gtk_spin_button_new_with_range(320, 7680, 10);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->window_width_spin), 1920);
-    gtk_widget_set_sensitive(widgets->window_width_spin, FALSE);
-    g_signal_connect(widgets->window_width_spin, "value-changed",
-                     G_CALLBACK(on_window_dimension_changed), widgets.get());
-    gtk_grid_attach(GTK_GRID(grid), widgets->window_width_spin, 1, row, 1, 1);
+    widgets->track_class_combo = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "None (disabled)");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "person");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "car");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "bird");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "laptop");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "boat");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "motorcycle");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "bicycle");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widgets->track_class_combo), "chair");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->track_class_combo), 0); // Default: disabled
+    gtk_grid_attach(GTK_GRID(grid), widgets->track_class_combo, 1, row, 1, 1);
     row++;
 
-    // Window height
-    label = gtk_label_new("Window Height (240-4320):");
-    gtk_widget_set_halign(label, GTK_ALIGN_START);
-    gtk_grid_attach(GTK_GRID(grid), label, 0, row, 1, 1);
-
-    widgets->window_height_spin = gtk_spin_button_new_with_range(240, 4320, 10);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->window_height_spin), 1080);
-    gtk_widget_set_sensitive(widgets->window_height_spin, FALSE);
-    g_signal_connect(widgets->window_height_spin, "value-changed",
-                     G_CALLBACK(on_window_dimension_changed), widgets.get());
-    gtk_grid_attach(GTK_GRID(grid), widgets->window_height_spin, 1, row, 1, 1);
-    row++;
+    // Separator before display options section
+    {
+        GtkWidget *disp_sep = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+        gtk_grid_attach(GTK_GRID(grid), disp_sep, 0, row, 2, 1);
+        row++;
+    }
 
     // Display options header
     label = gtk_label_new(nullptr);
@@ -829,8 +969,9 @@ static void on_activate(GtkApplication *app, gpointer user_data)
                            [](gpointer data)
                            { delete static_cast<AppWidgets *>(data); });
 
-    // Populate model list based on what is currently installed on disk
+    // Populate model list and camera list
     refresh_model_combo(widgets_ptr);
+    refresh_camera_combo(widgets_ptr);
 
     // Show all widgets
     gtk_widget_show_all(window);
@@ -936,66 +1077,27 @@ static gboolean on_window_delete_event(GtkWidget *widget, GdkEvent *event, gpoin
     // Return TRUE would prevent the window from closing
     return FALSE;
 }
-static void on_resolution_preset_changed(GtkWidget *combo_box, gpointer user_data)
+
+// Called when the camera combo box popup opens or closes.
+// Re-scans available camera devices each time the popup becomes visible so
+// that devices plugged in after the launcher started are listed without a
+// restart. The AppWidgets lifetime is tied to the GtkWindow via
+// g_object_set_data_full, so widgets_ptr remains valid while the window
+// (and its child combo box) is alive.
+static void on_camera_popup_shown(GObject *obj, GParamSpec *pspec, gpointer user_data)
 {
-    auto *widgets = static_cast<AppWidgets *>(user_data);
-
-    int active_index = gtk_combo_box_get_active(GTK_COMBO_BOX(combo_box));
-
-    if (active_index > 0 && active_index < static_cast<int>(sizeof(RESOLUTION_PRESETS) / sizeof(RESOLUTION_PRESETS[0])))
-    {
-        // Apply preset resolution
-        const ResolutionPreset &preset = RESOLUTION_PRESETS[active_index];
-
-        // Block signals to prevent recursive updates
-        g_signal_handlers_block_by_func(widgets->window_width_spin,
-                                        (gpointer)on_window_dimension_changed, widgets);
-        g_signal_handlers_block_by_func(widgets->window_height_spin,
-                                        (gpointer)on_window_dimension_changed, widgets);
-
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->window_width_spin), preset.width);
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgets->window_height_spin), preset.height);
-
-        // Unblock signals
-        g_signal_handlers_unblock_by_func(widgets->window_width_spin,
-                                          (gpointer)on_window_dimension_changed, widgets);
-        g_signal_handlers_unblock_by_func(widgets->window_height_spin,
-                                          (gpointer)on_window_dimension_changed, widgets);
-
-        // Disable spin buttons when using preset
-        gtk_widget_set_sensitive(widgets->window_width_spin, FALSE);
-        gtk_widget_set_sensitive(widgets->window_height_spin, FALSE);
-    }
-    else if (active_index == 0)
-    {
-        // Custom resolution - enable spin buttons
-        gtk_widget_set_sensitive(widgets->window_width_spin, TRUE);
-        gtk_widget_set_sensitive(widgets->window_height_spin, TRUE);
-    }
+    (void)pspec;
+    gboolean shown = FALSE;
+    g_object_get(obj, "popup-shown", &shown, nullptr);
+    if (shown)
+        refresh_camera_combo(static_cast<AppWidgets *>(user_data));
 }
 
-static void on_window_dimension_changed(GtkWidget *spin_button, gpointer user_data)
+static void on_resolution_preset_changed(GtkWidget *combo_box, gpointer user_data)
 {
-    auto *widgets = static_cast<AppWidgets *>(user_data);
-    (void)spin_button;
-
-    // When user manually changes dimensions, switch to "Custom" preset
-    int current_preset = gtk_combo_box_get_active(GTK_COMBO_BOX(widgets->resolution_preset_combo));
-
-    // Only switch to Custom if we're not already on Custom and spin buttons are enabled
-    // (enabled means user is manually editing, not a preset change)
-    if (current_preset != 0 && gtk_widget_get_sensitive(widgets->window_width_spin))
-    {
-        // Block signal to prevent recursion
-        g_signal_handlers_block_by_func(widgets->resolution_preset_combo,
-                                        (gpointer)on_resolution_preset_changed, widgets);
-
-        gtk_combo_box_set_active(GTK_COMBO_BOX(widgets->resolution_preset_combo), 0);
-
-        // Unblock signal
-        g_signal_handlers_unblock_by_func(widgets->resolution_preset_combo,
-                                          (gpointer)on_resolution_preset_changed, widgets);
-    }
+    // No additional action needed: the selected index is read directly at launch time.
+    (void)combo_box;
+    (void)user_data;
 }
 
 int main(int argc, char **argv)

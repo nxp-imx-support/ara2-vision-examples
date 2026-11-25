@@ -151,7 +151,7 @@ warning() {
 
 # Package information
 PACKAGE_NAME="ara2-vision-examples"
-PACKAGE_VERSION="1.2.0"
+PACKAGE_VERSION="1.3.0"
 DEMO_EXEC="multistream_yolo"
 FETCH_VIDEOS_SCRIPT="fetch_videos.sh"
 INSTALL_PATH="/usr/bin"

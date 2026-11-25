@@ -9,19 +9,18 @@
     },
     {
       "type": "rtsp",
-      "url": "rtsp://192.168.1.100:554/stream1",
+      "url": "rtsp://192.168.1.100:554/stream2",
+      "record_url": "rtsp://192.168.1.100:554/stream1",
       "latency_ms": 200,
-      "use_tcp": true
+      "use_tcp": true,
+      "record": true,
+      "record_dir": "/var/lib/ara2-vision-examples/recordings",
+      "segment_seconds": 60,
+      "retention_minutes": 30
     },
     {
       "type": "video_file",
       "filepath": "/usr/share/ara2-vision-examples/sample_videos/video_0.ts"
-    },
-    {
-      "type": "test_pattern",
-      "pattern": 0,
-      "width": 640,
-      "height": 360
     }
   ]
 }
